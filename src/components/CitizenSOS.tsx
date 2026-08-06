@@ -7,6 +7,7 @@ import { Incident } from '../utils/mockData';
 interface CitizenSOSProps {
   onAddIncident: (inc: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status'] }) => void;
   addNotification: (msg: string, type: 'emergency' | 'warning' | 'info' | 'success') => void;
+  onLocationLock?: (loc: { lat: number; lng: number } | null) => void;
   compact?: boolean;
 }
 
@@ -88,7 +89,7 @@ Output ONLY raw JSON. No markdown blocks, backticks, or formatting.`
   return JSON.parse(cleanJson);
 }
 
-export default function CitizenSOS({ onAddIncident, addNotification, compact = false }: CitizenSOSProps) {
+export default function CitizenSOS({ onAddIncident, addNotification, onLocationLock, compact = false }: CitizenSOSProps) {
   const [sosCategory, setSosCategory] = useState<'Medical' | 'Rescue' | 'Food' | 'Water' | 'Fire' | 'Police'>('Rescue');
   const [description, setDescription] = useState('');
   const [locationName, setLocationName] = useState('');

@@ -670,14 +670,38 @@ export default function IncidentAnalyzer({ onAddIncident, addNotification }: Inc
     triggerReverseGeocode(newLat, newLng);
   };
 
+  const watchIdRef = useRef<number | null>(null);
+
   const handleUseCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const { latitude, longitude } = pos.coords;
-        updateMapPosition(latitude, longitude);
-      });
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      // Clear any existing watcher
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+
+      const id = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          updateMapPosition(latitude, longitude);
+        },
+        (err) => {
+          console.error("EOC GPS tracking error:", err);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+      watchIdRef.current = id;
     }
   };
+
+  // Clean up watcher on unmount
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null && typeof window !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
 
   // Mount settings & keys checklist
   useEffect(() => {

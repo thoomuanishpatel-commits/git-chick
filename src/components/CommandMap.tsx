@@ -22,6 +22,7 @@ interface CommandMapProps {
   onSelectVehicle: (vehicle: Vehicle | null) => void;
   forecastHours?: number;
   onForecastHoursChange?: (hours: number) => void;
+  userLocation?: { lat: number; lng: number } | null;
 }
 
 // Map events handler to allow clicks on map to set road blockages
@@ -42,13 +43,20 @@ function MapEventsHandler({ onMapClick }: { onMapClick: (loc: Location) => void 
 function MapCenterHandler({
   selectedIncident,
   selectedVehicle,
+  userLocation,
 }: {
   selectedIncident: Incident | null;
   selectedVehicle: Vehicle | null;
+  userLocation?: { lat: number; lng: number } | null;
 }) {
   const map = useMap();
   useEffect(() => {
-    if (selectedIncident) {
+    if (userLocation) {
+      map.flyTo([userLocation.lat, userLocation.lng], 14, {
+        animate: true,
+        duration: 1.5,
+      });
+    } else if (selectedIncident) {
       // Step 3: Determine zoom depending on disaster size
       let zoom = 15; // default
       if (selectedIncident.type === 'Building Collapse' || selectedIncident.type === 'Road Blockage' || selectedIncident.type === 'Medical Emergency') {
@@ -73,7 +81,7 @@ function MapCenterHandler({
         duration: 2.0,
       });
     }
-  }, [selectedIncident, selectedVehicle, map]);
+  }, [selectedIncident, selectedVehicle, userLocation, map]);
   return null;
 }
 
@@ -240,6 +248,7 @@ export default function CommandMap({
   onSelectVehicle,
   forecastHours: propForecastHours,
   onForecastHoursChange,
+  userLocation,
 }: CommandMapProps) {
   const [mounted, setMounted] = useState(false);
   const [mapKey, setMapKey] = useState('');
@@ -252,6 +261,21 @@ export default function CommandMap({
   // Viewport tracking state
   const [visibleBounds, setVisibleBounds] = useState<L.LatLngBounds | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(8);
+
+  const userLocationIcon = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    return L.divIcon({
+      html: `
+        <div class="relative flex items-center justify-center">
+          <div class="absolute w-8 h-8 rounded-full bg-cyan-500/20 animate-ping"></div>
+          <div class="absolute w-4 h-4 rounded-full bg-cyan-500 border-2 border-white shadow-[0_0_10px_#06b6d4]"></div>
+        </div>
+      `,
+      className: 'custom-user-location-icon',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+  }, []);
 
   // Layer toggles
   const [layers, setLayers] = useState({
@@ -269,22 +293,6 @@ export default function CommandMap({
     fireStations: true
   });
 
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && navigator.geolocation) {
-      const watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        },
-        (err) => {
-          console.warn("User GPS tracking disabled.", err);
-        },
-        { enableHighAccuracy: true }
-      );
-      return () => navigator.geolocation.clearWatch(watchId);
-    }
-  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -629,6 +637,7 @@ export default function CommandMap({
         <MapCenterHandler
           selectedIncident={selectedIncident}
           selectedVehicle={selectedVehicle}
+          userLocation={userLocation}
         />
 
         {/* Viewport Bounds listener */}
@@ -640,6 +649,19 @@ export default function CommandMap({
         {/* Clicks add road barriers */}
         {layers.closures && (
           <MapEventsHandler onMapClick={onToggleRoadClosure} />
+        )}
+
+        {/* User's live tracked location marker */}
+        {userLocation && userLocationIcon && (
+          <Marker 
+            position={[userLocation.lat, userLocation.lng]} 
+            icon={userLocationIcon}
+            zIndexOffset={1000}
+          >
+            <Tooltip permanent={false} direction="top" offset={[0, -10]}>
+              <span className="font-mono text-[9px] uppercase font-bold text-cyan-400">YOUR LIVE GPS SIGNAL</span>
+            </Tooltip>
+          </Marker>
         )}
 
         {/* District bounds (canvas polygons) */}

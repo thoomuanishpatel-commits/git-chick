@@ -78,6 +78,7 @@ function HomeDashboard() {
   const [eocDate, setEocDate] = useState('');
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [userLiveLocation, setUserLiveLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     const updateClock = () => {
@@ -623,6 +624,7 @@ function HomeDashboard() {
                   onSelectVehicle={() => {}}
                   forecastHours={forecastHours}
                   onForecastHoursChange={setForecastHours}
+                  userLocation={userLiveLocation}
                 />
               </div>
             </div>
@@ -880,6 +882,7 @@ function HomeDashboard() {
           onSelectVehicle={setSelectedVehicle}
           forecastHours={forecastHours}
           onForecastHoursChange={setForecastHours}
+          userLocation={userLiveLocation}
         />
 
 
@@ -1354,6 +1357,7 @@ function HomeDashboard() {
                             }
                           }}
                           addNotification={addNotification}
+                          onLocationLock={setUserLiveLocation}
                           compact={true}
                         />
                       </div>
