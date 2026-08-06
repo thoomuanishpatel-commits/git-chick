@@ -51,6 +51,7 @@ import RiskPrediction from '../components/RiskPrediction';
 import AIChatAssistant from '../components/AIChatAssistant';
 import ReportGenerator from '../components/ReportGenerator';
 import ResizablePanel from '../components/ResizablePanel';
+import { FAQ } from '../components/ui/faq-section';
 
 // Load map dynamically to prevent SSR hydration errors
 const CommandMap = dynamic(() => import('../components/CommandMap'), {
@@ -452,29 +453,7 @@ function HomeDashboard() {
         </section>
 
         {/* FAQ Accordion */}
-        <section className="max-w-3xl mx-auto px-6 py-16 border-t border-white/5">
-          <h2 className="text-center font-mono text-base uppercase font-bold tracking-widest text-zinc-300 mb-8">
-            Frequently Asked Operations Questions
-          </h2>
-          <div className="space-y-4 font-mono text-xs">
-            {faqs.map((faq, idx) => (
-              <div key={idx} className="border border-white/5 rounded-xl bg-zinc-900/20 overflow-hidden">
-                <button
-                  onClick={() => toggleFaq(idx)}
-                  className="w-full text-left p-4 font-bold flex justify-between items-center text-zinc-300 hover:text-white transition"
-                >
-                  <span>{faq.q}</span>
-                  <span className="text-cyan-400">{faqOpenIndex === idx ? '−' : '+'}</span>
-                </button>
-                {faqOpenIndex === idx && (
-                  <div className="p-4 pt-0 text-zinc-500 border-t border-white/5 bg-zinc-950/40 leading-relaxed">
-                    {faq.a}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
+        <FAQ />
 
         {/* Footer */}
         <footer className="border-t border-white/5 py-12 text-center text-zinc-500 text-[10px] font-mono">
