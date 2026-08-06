@@ -1,0 +1,475 @@
+'use client';
+
+import { useState } from 'react';
+import { Send, MapPin, Camera, HelpCircle, Shield, AlertTriangle, Loader2 } from 'lucide-react';
+import { Incident } from '../utils/mockData';
+
+interface CitizenSOSProps {
+  onAddIncident: (inc: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status'] }) => void;
+  addNotification: (msg: string, type: 'emergency' | 'warning' | 'info' | 'success') => void;
+  compact?: boolean;
+}
+
+// Call Google Gemini Multimodal Vision API
+async function analyzeImageWithGemini(
+  base64Data: string, 
+  mimeType: string, 
+  apiKey: string
+): Promise<{
+  isFake: boolean;
+  type: string;
+  severity: number;
+  casualtyEstimate: number;
+  trappedCount: number;
+  description: string;
+  requiredResources: string[];
+}> {
+  const cleanBase64 = base64Data.split(',')[1];
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `You are an AI disaster intake verification agent for Telangana State Disaster Management Authority (TSDMA).
+Analyze this citizen-submitted SOS photo.
+Determine if the image contains an active emergency or disaster (such as fire, flooding, landslide, building collapse, major utility hazard, road accident, or medical injury).
+
+If the image is a generic selfie, indoor room with no crisis, computer screen, landscape with no threat, empty street, animal with no threat, or random object, return JSON:
+{
+  "isFake": true,
+  "type": "Fake",
+  "severity": 0,
+  "casualtyEstimate": 0,
+  "trappedCount": 0,
+  "requiredResources": [],
+  "description": "No active emergency detected. The image shows a generic scene without indicators of fire, flooding, or hazard."
+}
+
+If a real emergency/disaster is detected, return JSON:
+{
+  "isFake": false,
+  "type": "Fire", // Choose one: Fire, Flood, Landslide, Medical Emergency, Road Blockage, Snake Sighting, Injured Stray Animal, Large Pothole
+  "severity": 85, // 0-100 scale
+  "casualtyEstimate": 1,
+  "trappedCount": 0,
+  "description": "Short summary of the threat seen in the image",
+  "requiredResources": ["Fire Truck"] // e.g. ["Fire Truck"], ["Ambulance"], ["Rescue Boat"], ["Wildlife Rescue Team"]
+}
+
+Output ONLY raw JSON. No markdown blocks, backticks, or formatting.`
+              },
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: cleanBase64
+                }
+              }
+            ]
+          }
+        ]
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`AI Gateway error: ${response.status}`);
+  }
+
+  const result = await response.json();
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+  return JSON.parse(cleanJson);
+}
+
+export default function CitizenSOS({ onAddIncident, addNotification, compact = false }: CitizenSOSProps) {
+  const [sosCategory, setSosCategory] = useState<'Medical' | 'Rescue' | 'Food' | 'Water' | 'Fire' | 'Police'>('Rescue');
+  const [description, setDescription] = useState('');
+  const [locationName, setLocationName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [gpsSimulated, setGpsSimulated] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Real photo upload states
+  const [photoName, setPhotoName] = useState('');
+  const [photoBase64, setPhotoBase64] = useState('');
+  const [photoMime, setPhotoMime] = useState('');
+  const [aiScanning, setAiScanning] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleDetectLocation = () => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setGpsSimulated({ lat, lng });
+          setLocationName('Live browser coordinates locked');
+          addNotification('GPS location acquired successfully.', 'success');
+        },
+        () => {
+          const lat = 17.3850 + (Math.random() - 0.5) * 0.02;
+          const lng = 78.4867 + (Math.random() - 0.5) * 0.02;
+          setGpsSimulated({ lat, lng });
+          setLocationName('GPS permission denied. Fallback to Hyderabad EOC coordinates');
+          addNotification('GPS permission denied. Centering on Hyderabad region.', 'warning');
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else {
+      const lat = 17.3850 + (Math.random() - 0.5) * 0.02;
+      const lng = 78.4867 + (Math.random() - 0.5) * 0.02;
+      setGpsSimulated({ lat, lng });
+      setLocationName('Geolocation not supported. Fallback to Hyderabad EOC coordinates');
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setPhotoName(file.name);
+    setPhotoMime(file.type);
+    setAiError(null);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhotoBase64(reader.result as string);
+      addNotification('Emergency media attached successfully.', 'success');
+    };
+    reader.onerror = () => {
+      addNotification('Failed to read visual attachment.', 'warning');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!description.trim() || isSubmitting || aiScanning) return;
+
+    setIsSubmitting(true);
+    setAiError(null);
+
+    let parsedAiResult = null;
+
+    if (photoBase64) {
+      setAiScanning(true);
+      try {
+        const apiKey = localStorage.getItem('gemini_api_key') || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+        const aiResponse = await analyzeImageWithGemini(photoBase64, photoMime, apiKey);
+        
+        if (aiResponse.isFake) {
+          setAiError(aiResponse.description || 'AI Vision Scan: No active hazard or emergency indicators found in attachment.');
+          addNotification('SOS Rejected: AI vision indicates no active threat.', 'warning');
+          setAiScanning(false);
+          setIsSubmitting(false);
+          return;
+        }
+        
+        parsedAiResult = aiResponse;
+      } catch (err: any) {
+        console.error('Gemini verification error:', err);
+        addNotification('AI verification offline. Proceeding with standard EOC routing.', 'warning');
+      } finally {
+        setAiScanning(false);
+      }
+    }
+
+    // Determine coordinates
+    const finalLoc = gpsSimulated || {
+      lat: 17.3850 + (Math.random() - 0.5) * 0.02,
+      lng: 78.4867 + (Math.random() - 0.5) * 0.02
+    };
+
+    // Map Citizen SOS Category to Incident Type and Category
+    const descLower = description.toLowerCase();
+    let category: Incident['category'] = 'Disaster Response';
+    let mappedType: Incident['type'] = 'Building Collapse';
+    let requiredResources: string[] = ['Ambulance'];
+    let baseSeverity = 75;
+
+    // Use AI verified details if available
+    if (parsedAiResult) {
+      mappedType = parsedAiResult.type as Incident['type'];
+      baseSeverity = parsedAiResult.severity || 70;
+      requiredResources = parsedAiResult.requiredResources || ['Ambulance'];
+      
+      if (mappedType === 'Fire' || mappedType === 'Flood' || mappedType === 'Landslide' || mappedType === 'Building Collapse') {
+        category = 'Disaster Response';
+      } else if (mappedType === 'Snake Sighting') {
+        category = 'Animal Rescue';
+      } else if (mappedType === 'Injured Stray Animal') {
+        category = 'Veterinary Services';
+      } else if (mappedType === 'Large Pothole') {
+        category = 'Infrastructure Issues';
+      } else {
+        category = 'Disaster Response';
+      }
+    } else {
+      // Local fallbacks if AI fails or no photo attached
+      if (descLower.includes('snake') || descLower.includes('cobra')) {
+        mappedType = 'Snake Sighting';
+        category = 'Animal Rescue';
+        requiredResources = ['Wildlife Rescue Team'];
+        baseSeverity = 55;
+      } else if (descLower.includes('injured stray') || descLower.includes('injured dog') || descLower.includes('injured animal') || descLower.includes('hurt dog')) {
+        mappedType = 'Injured Stray Animal';
+        category = 'Veterinary Services';
+        requiredResources = ['Veterinary Rescue Van'];
+        baseSeverity = 40;
+      } else if (descLower.includes('pothole') || descLower.includes('broken road')) {
+        mappedType = 'Large Pothole';
+        category = 'Infrastructure Issues';
+        requiredResources = ['Road Maintenance Crew'];
+        baseSeverity = 35;
+      } else if (descLower.includes('sewage') || descLower.includes('sewer') || descLower.includes('drain')) {
+        mappedType = 'Sewage Overflow';
+        category = 'Utility Failures';
+        requiredResources = ['Municipal Sewage Maintenance'];
+        baseSeverity = 30;
+      } else if (descLower.includes('power') || descLower.includes('electric pole') || descLower.includes('wire')) {
+        mappedType = 'Fallen Electric Pole';
+        category = 'Utility Failures';
+        requiredResources = ['TS-SPDCL Power Utility Team'];
+        baseSeverity = 40;
+      } else if (sosCategory === 'Fire') {
+        mappedType = 'Fire';
+        category = 'Disaster Response';
+        requiredResources = ['Fire Truck'];
+        baseSeverity = 80;
+      } else if (sosCategory === 'Water' || descLower.includes('flood')) {
+        mappedType = 'Flood';
+        category = 'Disaster Response';
+        requiredResources = ['Rescue Boat'];
+        baseSeverity = 65;
+      } else if (sosCategory === 'Medical') {
+        mappedType = 'Medical Emergency';
+        category = 'Disaster Response';
+        requiredResources = ['Ambulance'];
+        baseSeverity = 85;
+      } else if (sosCategory === 'Police') {
+        mappedType = 'Road Blockage';
+        category = 'Public Safety';
+        requiredResources = ['Police Patrol'];
+        baseSeverity = 40;
+      } else {
+        mappedType = 'Rescue Request';
+        category = 'Disaster Response';
+        requiredResources = ['Urban Search & Rescue Unit', 'Ambulance'];
+        baseSeverity = 70;
+      }
+    }
+
+    let snakeDetails;
+    if (mappedType === 'Snake Sighting') {
+      const isIndoors = descLower.includes('indoor') || descLower.includes('kitchen') || descLower.includes('house') || descLower.includes('room');
+      snakeDetails = {
+        urgency: isIndoors ? ('High' as const) : ('Medium' as const),
+        environment: isIndoors ? ('Indoors' as const) : ('Outdoors' as const),
+        recommendation: 'Contacting Telangana Forest Department Snake Rescue unit.'
+      };
+    }
+
+    let animalRescueDetails;
+    if (category === 'Veterinary Services') {
+      animalRescueDetails = {
+        animalType: descLower.includes('dog') ? 'Dog' : descLower.includes('cat') ? 'Cat' : 'Stray Animal',
+        condition: 'Injured / Distressed',
+        recommendation: 'Dispatching Veterinary Animal Rescue team.',
+        summary: 'Distressed animal reported via citizen portal.'
+      };
+    }
+
+    let civicDetails;
+    if (category === 'Infrastructure Issues' || category === 'Utility Failures' || category === 'Public Safety') {
+      civicDetails = {
+        recommendedDepartment: category === 'Utility Failures' ? 'TS-SPDCL Utility Wing' : 'GHMC Public Services',
+        reportSummary: 'Civic safety issue registered and routed.'
+      };
+    }
+
+    onAddIncident({
+      type: mappedType,
+      category,
+      severity: baseSeverity + (parsedAiResult ? 0 : Math.floor(Math.random() * 15)),
+      location: finalLoc,
+      description: parsedAiResult 
+        ? `VERIFIED SOS REPORT: ${description}. (AI Scan: ${parsedAiResult.description})`
+        : `CITIZEN SOS REPORT: ${description}. (Sub-location context: ${locationName || 'Unspecified'})`,
+      casualtyEstimate: parsedAiResult?.casualtyEstimate ?? Math.round(Math.random() * 2),
+      trappedCount: parsedAiResult?.trappedCount ?? Math.round(Math.random() * 2),
+      requiredResources,
+      reporter: 'Citizen SOS',
+      needsSOSValidation: !parsedAiResult, // Already AI verified, no EOC human verification needed
+      aiPriority: 'HIGH',
+      etaResolution: 4,
+      status: parsedAiResult ? 'Reported' : 'Pending',
+      snakeDetails,
+      animalRescueDetails,
+      civicDetails
+    });
+
+    if (parsedAiResult) {
+      addNotification(`AI VERIFIED SOS: Broadcast registered for ${mappedType} severity ${baseSeverity}%.`, 'success');
+    } else {
+      addNotification(`CITIZEN SOS RECEIVED: Dispatching assessment unit for ${sosCategory} request.`, 'emergency');
+    }
+
+    // Reset
+    setDescription('');
+    setLocationName('');
+    setPhotoName('');
+    setPhotoBase64('');
+    setPhotoMime('');
+    setGpsSimulated(null);
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className={`w-full h-full font-mono text-xs flex flex-col justify-between p-1 bg-zinc-950/20`}>
+      <div>
+        {!compact && (
+          <>
+            <div className="flex items-center space-x-2 text-red-500 border-b border-white/5 pb-3 mb-4">
+              <AlertTriangle className="w-5 h-5 animate-pulse" />
+              <span className="text-sm font-bold tracking-wider uppercase">Citizen SOS Dispatch Portal</span>
+            </div>
+
+            <p className="text-slate-400 mb-4 leading-relaxed text-[11px]">
+              If you are in danger, use this portal to broadcast your coordinates directly to the disaster response platform. The system will categorize your ticket and direct the nearest first responder crew.
+            </p>
+          </>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Select Category */}
+          <div>
+            <label className="text-slate-400 block mb-1 uppercase text-[10px]">Select Emergency Category</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['Rescue', 'Medical', 'Fire', 'Water', 'Police', 'Food'] as const).map((cat) => (
+                <button
+                  type="button"
+                  key={cat}
+                  onClick={() => setSosCategory(cat)}
+                  className={`py-2 px-1 border rounded-lg text-center font-semibold transition ${
+                    sosCategory === cat
+                      ? 'bg-red-950/40 text-red-400 border-red-500/50'
+                      : 'bg-white/5 text-slate-400 border-white/5 hover:border-slate-800'
+                  }`}
+                >
+                  {cat === 'Medical' && '🚑 Medical'}
+                  {cat === 'Rescue' && '🛟 Rescue'}
+                  {cat === 'Fire' && '🔥 Fire'}
+                  {cat === 'Water' && '🌊 Flooding'}
+                  {cat === 'Police' && '👮 Police'}
+                  {cat === 'Food' && '📦 Supplies'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-slate-400 block mb-1 uppercase text-[10px]">Describe Your Emergency</label>
+            <textarea
+              required
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Tell us what is happening, how many people are with you, and any injuries..."
+              className="w-full h-24 bg-zinc-900/60 border border-white/10 rounded-lg p-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition"
+            />
+          </div>
+
+          {/* GPS & Photo Upload Row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-slate-400 block mb-1 uppercase text-[10px]">Current Location (GPS)</label>
+              <button
+                type="button"
+                onClick={handleDetectLocation}
+                className={`w-full py-2 flex items-center justify-center space-x-1.5 border rounded-lg transition ${
+                  gpsSimulated
+                    ? 'bg-emerald-950/20 text-emerald-400 border-emerald-500/40'
+                    : 'bg-white/5 text-slate-300 border-white/10 hover:border-slate-500'
+                }`}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                <span className="text-[10px]">{gpsSimulated ? 'GPS LOCKED' : 'DETECT LOCATION'}</span>
+              </button>
+            </div>
+            
+            <div>
+              <label className="text-slate-400 block mb-1 uppercase text-[10px]">Visual Media Attachment</label>
+              <input
+                type="file"
+                id="sos-photo-input"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => document.getElementById('sos-photo-input')?.click()}
+                className={`w-full py-2 flex items-center justify-center space-x-1.5 border rounded-lg transition overflow-hidden text-ellipsis whitespace-nowrap px-2 ${
+                  photoBase64
+                    ? 'bg-cyan-950/20 text-cyan-400 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.1)] font-bold'
+                    : 'bg-white/5 text-slate-300 border-white/10 hover:border-slate-500'
+                }`}
+              >
+                <Camera className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="truncate text-[10px]">
+                  {photoName ? photoName : 'ATTACH PHOTO'}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {gpsSimulated && (
+            <div className="bg-black/30 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg text-[9px] flex justify-between items-center font-mono">
+              <span>LAT: {gpsSimulated.lat.toFixed(5)} | LNG: {gpsSimulated.lng.toFixed(5)}</span>
+              <span>GPS Precision +/- 4m</span>
+            </div>
+          )}
+
+          {/* AI Intake Errors */}
+          {aiError && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-2.5 rounded-lg text-[9px] flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 animate-pulse" />
+              <div className="leading-tight">
+                <div className="font-bold uppercase tracking-wider text-red-300">Intake Blocked: False Alarm Filter</div>
+                <div className="opacity-80 mt-0.5 leading-relaxed">{aiError}</div>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
+
+      <button
+        onClick={handleSubmit}
+        disabled={isSubmitting || !description.trim() || aiScanning}
+        className={`w-full bg-red-600 hover:bg-red-500 disabled:bg-slate-800 disabled:text-slate-600 text-slate-900 font-bold rounded-lg uppercase tracking-wider text-xs transition flex items-center justify-center space-x-2 ${
+          compact ? 'mt-4 py-2.5' : 'mt-6 py-3'
+        }`}
+      >
+        {aiScanning ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin text-slate-900 animate-duration-1000" />
+            <span className="animate-pulse">AI VETTING SCAN RUNNING...</span>
+          </>
+        ) : isSubmitting ? (
+          <span className="animate-pulse">TRANSMITTING SOS SIGNAL...</span>
+        ) : (
+          <>
+            <Send className="w-4 h-4" />
+            <span>TRANSMIT SOS SIGNAL NOW</span>
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
