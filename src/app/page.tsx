@@ -30,7 +30,10 @@ import {
   Settings,
   Loader2,
   Sun,
-  Moon
+  Moon,
+  Shield,
+  ArrowRight,
+  ArrowDown
 } from 'lucide-react';
 import { AuthProvider, useAuth, UserRole } from '../context/AuthContext';
 import Login from '../components/Login';
@@ -75,9 +78,85 @@ const AnalyticsDashboard = dynamic(() => import('../components/AnalyticsDashboar
     </div>
   ),
 });
-function HomeDashboard() {
+function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
   const auth = useAuth();
   const [currentView, setCurrentView] = useState<'landing' | 'admin' | 'citizen'>('landing');
+  const [pipelineVisible, setPipelineVisible] = useState(false);
+  const [pipelineStep, setPipelineStep] = useState(0.0); // actual animated value
+  const targetStepRef = useRef(0.0); // target goal value
+  const pipelineRef = useRef<HTMLDivElement>(null);
+
+  // Lerp loop for buttery-smooth pipeline progression
+  useEffect(() => {
+    let animationFrameId: number;
+    
+    const updateLerp = () => {
+      setPipelineStep(prev => {
+        const diff = targetStepRef.current - prev;
+        if (Math.abs(diff) < 0.001) {
+          return targetStepRef.current;
+        }
+        // Lerp step: move 8% closer to the target value on each frame
+        return prev + diff * 0.08;
+      });
+      animationFrameId = requestAnimationFrame(updateLerp);
+    };
+    
+    animationFrameId = requestAnimationFrame(updateLerp);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Intersection Observer to set visible state when the section enters the screen
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setPipelineVisible(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    const el = pipelineRef.current;
+    if (el) {
+      observer.observe(el);
+    }
+
+    const handleScroll = () => {
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      
+      // Calculate progress of section through the viewport center.
+      // Starts when element top is at 75% of screen height and ends when bottom is at 25%.
+      const elementHeight = rect.height;
+      const elementTop = rect.top;
+      
+      const startOffset = windowHeight * 0.75;
+      const endOffset = windowHeight * 0.25;
+      
+      const totalRange = startOffset - endOffset + elementHeight * 0.4;
+      const currentScroll = startOffset - elementTop;
+      
+      let progress = currentScroll / totalRange;
+      progress = Math.max(0, Math.min(1, progress));
+      
+      targetStepRef.current = progress * 6.0;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      if (el) {
+        observer.unobserve(el);
+      }
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, []);
   const [eocTime, setEocTime] = useState('');
   const [eocDate, setEocDate] = useState('');
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -132,41 +211,25 @@ function HomeDashboard() {
   } = useSimulation();
 
   const handleAddIncident = useCallback((incident: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status'] }) => {
-    if (auth.user?.role === 'Project Examiner') {
-      addNotification('🔍 Read-Only Console: Raising manual emergency incidents is disabled in evaluator demo mode.', 'warning');
-      return null;
-    }
     return addIncident(incident);
-  }, [addIncident, auth.user, addNotification]);
+  }, [addIncident]);
 
   const handleDispatchVehicle = useCallback((vehicleId: string, incidentId: string) => {
-    if (auth.user?.role === 'Project Examiner') {
-      addNotification('🔍 Read-Only Console: Vehicle dispatch is disabled in evaluator demo mode.', 'warning');
-      return;
-    }
     dispatchVehicle(vehicleId, incidentId);
-  }, [dispatchVehicle, auth.user, addNotification]);
+  }, [dispatchVehicle]);
 
   const handleToggleRoadClosure = useCallback((location: { lat: number; lng: number }) => {
-    if (auth.user?.role === 'Project Examiner') {
-      addNotification('🔍 Read-Only Console: Road block modifications are disabled in evaluator demo mode.', 'warning');
-      return;
-    }
     toggleRoadClosure(location);
-  }, [toggleRoadClosure, auth.user, addNotification]);
+  }, [toggleRoadClosure]);
 
   const handleToggleAutopilot = useCallback(() => {
-    if (auth.user?.role === 'Project Examiner') {
-      addNotification('🔍 Read-Only Console: AI Autopilot control is disabled in evaluator demo mode.', 'warning');
-      return;
-    }
     setAutopilotEnabled(!autopilotEnabled);
-  }, [autopilotEnabled, setAutopilotEnabled, auth.user, addNotification]);
+  }, [autopilotEnabled, setAutopilotEnabled]);
 
   const [activeConsoleTab, setActiveConsoleTab] = useState<'dispatch' | 'analyzer' | 'sos' | 'risk' | 'chat' | 'analytics' | 'reports'>('dispatch');
   const [sosConsoleRightTab, setSosConsoleRightTab] = useState<'inspect' | 'manual'>('inspect');
   const [forecastHours, setForecastHours] = useState<number>(0);
-  const [selectedCategory, setSelectedCategory] = useState<string>('Disasters');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   
   const filteredIncidents = useMemo(() => {
     if (selectedCategory === 'All') return incidents;
@@ -183,11 +246,6 @@ function HomeDashboard() {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   
   const handleUpdateIncident = useCallback((updated: Incident) => {
-    if (auth.user?.role === 'Project Examiner') {
-      addNotification('🔍 Read-Only Console: Status updates and incident modifications are disabled in evaluator demo mode.', 'warning');
-      return;
-    }
-
     setIncidents(prev => prev.map(inc => inc.id === updated.id ? updated : inc));
     setSelectedIncident(updated);
 
@@ -453,9 +511,207 @@ function HomeDashboard() {
     { id: 'reports', label: 'Report Briefings', icon: Briefcase }
   ];
 
+  // Pipeline animations status helpers
+  const getStepStatus = (index: number) => {
+    // index is 0 to 6
+    const current = pipelineStep >= index && pipelineStep < index + 1;
+    const isLastActive = index === 6 && pipelineStep >= 6.0;
+    
+    const completed = pipelineStep >= index + 1;
+    const pending = pipelineStep < index;
+    
+    return { 
+      current: current || isLastActive, 
+      completed, 
+      pending 
+    };
+  };
+
+  const getArrowFill = (index: number) => {
+    // index is 0 to 5 (Arrow 1 to 6)
+    const progress = pipelineStep - index;
+    const fillPercent = Math.max(0, Math.min(100, progress * 100));
+    return fillPercent;
+  };
+
+  const getStepColors = (index: number) => {
+    switch (index) {
+      case 0: // Citizen SOS
+        return {
+          border: 'border-red-500/70',
+          bg: 'bg-red-950/20',
+          iconBg: 'bg-red-500/20 text-red-300',
+          glow: 'shadow-[0_0_20px_rgba(239,68,68,0.35)]',
+          bullet: 'text-red-400'
+        };
+      case 1: // AI Vetting
+        return {
+          border: 'border-purple-500/70',
+          bg: 'bg-purple-950/20',
+          iconBg: 'bg-purple-500/20 text-purple-300',
+          glow: 'shadow-[0_0_20px_rgba(168,85,247,0.35)]',
+          bullet: 'text-purple-400'
+        };
+      case 2: // Location Lock
+        return {
+          border: 'border-amber-500/70',
+          bg: 'bg-amber-950/20',
+          iconBg: 'bg-amber-500/20 text-amber-300',
+          glow: 'shadow-[0_0_20px_rgba(245,158,11,0.35)]',
+          bullet: 'text-amber-400'
+        };
+      case 3: // Priority Queue
+        return {
+          border: 'border-blue-500/70',
+          bg: 'bg-blue-950/20',
+          iconBg: 'bg-blue-500/20 text-blue-300',
+          glow: 'shadow-[0_0_20px_rgba(59,130,246,0.35)]',
+          bullet: 'text-blue-400'
+        };
+      case 4: // Auto Dispatch
+        return {
+          border: 'border-orange-500/70',
+          bg: 'bg-orange-950/20',
+          iconBg: 'bg-orange-500/20 text-orange-300',
+          glow: 'shadow-[0_0_20px_rgba(249,115,22,0.35)]',
+          bullet: 'text-orange-400'
+        };
+      case 5: // EOC Oversight
+        return {
+          border: 'border-cyan-500/70',
+          bg: 'bg-cyan-950/20',
+          iconBg: 'bg-cyan-500/20 text-cyan-300',
+          glow: 'shadow-[0_0_20px_rgba(6,182,212,0.35)]',
+          bullet: 'text-cyan-400'
+        };
+      case 6: // Resolution
+        return {
+          border: 'border-emerald-500/70',
+          bg: 'bg-emerald-950/20',
+          iconBg: 'bg-emerald-500/20 text-emerald-300',
+          glow: 'shadow-[0_0_20px_rgba(16,185,129,0.35)]',
+          bullet: 'text-emerald-400'
+        };
+      default:
+        return {
+          border: 'border-cyan-500/70',
+          bg: 'bg-cyan-950/20',
+          iconBg: 'bg-cyan-500/20 text-cyan-300',
+          glow: 'shadow-[0_0_20px_rgba(6,182,212,0.35)]',
+          bullet: 'text-cyan-400'
+        };
+    }
+  };
+
+  const getConnectorColor = (index: number) => {
+    switch (index) {
+      case 0:
+        return 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)]';
+      case 1:
+        return 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.7)]';
+      case 2:
+        return 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.7)]';
+      case 3:
+        return 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.7)]';
+      case 4:
+        return 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.7)]';
+      case 5:
+        return 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.7)]';
+      default:
+        return 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.7)]';
+    }
+  };
+
+  const renderStepCard = (index: number, num: string, icon: string, title: string, desc: string) => {
+    const { current, completed } = getStepStatus(index);
+    const colors = getStepColors(index);
+    
+    return (
+      <div 
+        className={`glass-panel p-4 rounded-xl relative border flex flex-col justify-between items-center space-y-2 transition-all duration-500 ${
+          current 
+            ? `scale-[1.05] ${colors.border} ${colors.bg} text-white ${colors.glow} z-10 opacity-100` 
+            : completed 
+            ? 'scale-100 border-emerald-500/30 bg-emerald-950/5 opacity-[0.65] text-zinc-300'
+            : 'scale-100 border-white/10 bg-zinc-950/30 opacity-[0.45] text-zinc-400'
+        }`}
+      >
+        <div className="w-full flex justify-between items-center text-[8px] font-bold text-zinc-550">
+          <span>{num}</span>
+          {completed && <span className="text-emerald-400 font-bold text-[9px]">✓</span>}
+          {current && <span className={`${colors.bullet} font-bold text-[9px] animate-pulse`}>●</span>}
+        </div>
+        <span className={`p-1.5 rounded-lg text-xs transition-all duration-300 ${
+          current 
+            ? `${colors.iconBg} scale-110 shadow-lg` 
+            : completed 
+            ? 'bg-emerald-500/10 text-emerald-400' 
+            : 'bg-zinc-800/40 text-zinc-500'
+        }`}>
+          {icon}
+        </span>
+        <div className={`font-bold uppercase text-[10px] transition-colors duration-300 ${
+          current ? 'text-white font-extrabold' : completed ? 'text-zinc-300' : 'text-zinc-450'
+        }`}>
+          {title}
+        </div>
+        <div className={`text-[8px] leading-relaxed transition-colors duration-300 ${
+          current ? 'text-zinc-200' : completed ? 'text-zinc-550' : 'text-zinc-600'
+        }`}>
+          {desc}
+        </div>
+      </div>
+    );
+  };
+
+  const renderConnector = (index: number) => {
+    const fill = getArrowFill(index);
+    const connectorColor = getConnectorColor(index);
+    return (
+      <>
+        <div className={`hidden md:flex flex-col items-center justify-center relative w-full px-1 transition-all duration-300 ${fill > 0 ? 'opacity-100' : 'opacity-40'}`}>
+          <div className="w-full h-[2px] bg-zinc-800/60 relative rounded-full overflow-hidden">
+            <div 
+              className={`absolute top-0 bottom-0 left-0 transition-all duration-75 ${connectorColor}`}
+              style={{ width: `${fill}%` }}
+            />
+          </div>
+          {fill > 0 && fill < 100 && (
+            <div 
+              className="absolute h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_#06b6d4] -translate-x-1/2 transition-all duration-75 top-[19px]"
+              style={{ left: `calc(${fill}% + 4px)` }}
+            />
+          )}
+          <ArrowRight className={`w-3 h-3 mt-1.5 transition-colors duration-300 ${fill === 100 ? 'text-cyan-400' : 'text-zinc-700'}`} />
+        </div>
+        <div className={`flex md:hidden flex-col items-center justify-center relative py-1 h-8 transition-all duration-300 ${fill > 0 ? 'opacity-100' : 'opacity-45'}`}>
+          <div className="h-full w-[2px] bg-zinc-800/60 relative rounded-full overflow-hidden">
+            <div 
+              className={`absolute left-0 right-0 top-0 transition-all duration-75 ${connectorColor}`}
+              style={{ height: `${fill}%` }}
+            />
+          </div>
+          {fill > 0 && fill < 100 && (
+            <div 
+              className="absolute h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_#06b6d4] -translate-y-1/2 transition-all duration-75 left-[15px]"
+              style={{ top: `calc(${fill}% + 4px)` }}
+            />
+          )}
+          <ArrowDown className={`w-3 h-3 mt-1 transition-colors duration-300 ${fill === 100 ? 'text-cyan-400' : 'text-zinc-700'}`} />
+        </div>
+      </>
+    );
+  };
+
   if (currentView === 'landing') {
     return (
       <div className="min-h-screen bg-zinc-950 text-white selection:bg-cyan-500 selection:text-black font-sans relative overflow-x-hidden">
+        {isDemoMode && (
+          <div className="bg-amber-950/95 backdrop-blur border-b border-amber-500/30 text-amber-400 font-mono text-[9px] py-1.5 px-6 text-center uppercase tracking-widest relative z-50 flex items-center justify-center gap-2 select-none">
+            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>
+            <span>Evaluation Demo Mode Active — Simulated telemetry grid database</span>
+          </div>
+        )}
         {/* Navigation */}
         <nav className="border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -502,45 +758,56 @@ function HomeDashboard() {
         </nav>
 
         {/* Hero Section */}
-        <header className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden border-b border-white/5">
+        <header className="relative min-h-[90vh] flex items-center justify-center overflow-hidden border-b border-white/5">
           {/* Background Video (Hero Only) */}
           <video
             autoPlay
             loop
             muted
             playsInline
-            className="absolute top-0 left-0 w-full h-full object-cover z-0 pointer-events-none opacity-20 dark:opacity-25 transition-opacity duration-500"
+            className="absolute top-0 left-0 w-full h-full object-cover z-0 pointer-events-none opacity-20 transition-opacity duration-500"
           >
             <source src="/background.mov" type="video/quicktime" />
             <source src="/background.mov" type="video/mp4" />
           </video>
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-950/20 via-transparent to-transparent opacity-70 pointer-events-none"></div>
-          <div className="relative z-10 max-w-4xl mx-auto px-6 text-center space-y-6">
-            <div className="inline-flex items-center space-x-2 bg-cyan-950/30 border border-cyan-800/30 px-3 py-1 rounded-full text-[10px] text-cyan-400 font-mono tracking-widest uppercase">
-              <Sparkles className="w-3.5 h-3.5" /> Telangana Emergency Command Center Edition
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-950/20 via-transparent to-transparent opacity-70 pointer-events-none"></div>
+          
+          <div className="relative z-10 max-w-5xl mx-auto px-6 text-center space-y-8 py-16">
+            <div className="inline-flex items-center space-x-2 bg-red-950/30 border border-red-500/30 px-3.5 py-1 rounded-full text-[10px] text-red-400 font-mono tracking-widest uppercase animate-pulse">
+              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></span>
+              <span>ResQAI Active Operations Command</span>
             </div>
             
-            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight hero-gradient-text leading-none">
-              Predict. Dispatch. Coordinate.<br />
-              Autonomous Disaster Response.
-            </h1>
+            <div className="space-y-3">
+              <h1 className="text-5xl md:text-7xl font-extrabold tracking-wider font-mono text-white leading-none uppercase">
+                ResQAI
+              </h1>
+              <h2 className="text-lg md:text-2xl font-bold tracking-widest text-cyan-400 font-mono uppercase">
+                AI-Powered Emergency Response
+              </h2>
+            </div>
             
-            <p className="text-sm md:text-base text-zinc-400 max-w-xl mx-auto font-mono leading-relaxed">
-              ResQAI coordinates real-time emergency responder fleets, predicts landslide hazards, and manages medical supply levels for TSDMA across Telangana.
+            <p className="text-xs md:text-sm text-zinc-400 max-w-3xl mx-auto font-mono leading-relaxed">
+              Detect emergencies. Locate people. Prioritize incidents. Coordinate responders — in real time. 
+              ResQAI connects citizens, AI intelligence, field responders, and the Emergency Operations Center (EOC) into one seamless emergency response system.
             </p>
 
+            {/* Action CTAs */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
               <button
-                onClick={() => setCurrentView('citizen')}
+                onClick={() => {
+                  setCurrentView('citizen');
+                  addNotification('SOS CHANNEL INITIATED: Redirecting to emergency console.', 'info');
+                }}
                 className="relative group w-full sm:w-auto block text-xs font-bold font-mono uppercase tracking-widest outline-none cursor-pointer select-none"
               >
-                {/* Black Offset Layer */}
-                <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover:-translate-x-2.5 md:group-hover:translate-y-2.5 z-0" />
+                {/* Red Offset Shadow Layer */}
+                <div className="absolute inset-0 bg-red-950 border border-red-500/40 transition-all duration-300 translate-x-0 translate-y-0 md:group-hover:-translate-x-2.5 md:group-hover:translate-y-2.5 z-0 shadow-[0_0_15px_rgba(239,68,68,0.2)]" />
                 
-                {/* White Foreground Box */}
-                <div className="relative z-10 w-full px-6 py-3 bg-white border border-black text-black flex items-center justify-between gap-4 transition-transform duration-300 md:group-hover:-translate-y-0.5 rounded-none">
-                  <span>👤 Enter Citizen Safety Portal</span>
-                  <span className="text-black transition-colors duration-300 group-hover:text-red-600 font-bold">→</span>
+                {/* Red Foreground Box */}
+                <div className="relative z-10 w-full px-8 py-3.5 bg-gradient-to-r from-red-600 to-amber-600 border border-red-500 text-black flex items-center justify-between gap-4 transition-transform duration-300 md:group-hover:-translate-y-0.5 rounded-none font-extrabold">
+                  <span>🚨 SOS / REPORT EMERGENCY</span>
+                  <span className="text-black font-extrabold">→</span>
                 </div>
               </button>
 
@@ -548,229 +815,161 @@ function HomeDashboard() {
                 onClick={() => setCurrentView('admin')}
                 className="relative group w-full sm:w-auto block text-xs font-bold font-mono uppercase tracking-widest outline-none cursor-pointer select-none"
               >
-                {/* Black Offset Layer */}
-                <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover:-translate-x-2.5 md:group-hover:translate-y-2.5 z-0" />
+                {/* Cyan Offset Shadow Layer */}
+                <div className="absolute inset-0 bg-cyan-950 border border-cyan-500/30 transition-all duration-300 translate-x-0 translate-y-0 md:group-hover:-translate-x-2.5 md:group-hover:translate-y-2.5 z-0" />
                 
-                {/* White Foreground Box */}
-                <div className="relative z-10 w-full px-6 py-3 bg-white border border-black text-black flex items-center justify-between gap-4 transition-transform duration-300 md:group-hover:-translate-y-0.5 rounded-none">
-                  <span>🛡️ Enter Admin EOC Dashboard</span>
-                  <span className="text-black transition-colors duration-300 group-hover:text-red-600 font-bold">→</span>
+                {/* Glass Foreground Box */}
+                <div className="relative z-10 w-full px-8 py-3.5 bg-zinc-900/90 border border-zinc-700 hover:border-cyan-500/50 text-cyan-400 hover:text-white flex items-center justify-between gap-4 transition-transform duration-300 md:group-hover:-translate-y-0.5 rounded-none">
+                  <span>📡 VIEW LIVE OPERATIONS</span>
+                  <span className="text-cyan-400 transition-colors duration-300 group-hover:text-white font-bold">→</span>
                 </div>
               </button>
             </div>
           </div>
         </header>
 
-        {/* Feature Grid */}
-        <section className="max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          
-          {/* Card 1: AI Command Dispatcher */}
-          <div 
-            onClick={() => setCurrentView('admin')}
-            className="group relative premium-card p-6 rounded-2xl h-80 flex flex-col justify-between overflow-hidden transition-all duration-500 hover:-translate-y-2.5 hover:border-cyan-500/50 hover:bg-zinc-900/60 hover:shadow-[0_12px_40px_rgba(6,182,212,0.15)] focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 outline-none cursor-pointer"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentView('admin'); } }}
-          >
-            {/* Card Background Image with Gradient Overlay */}
-            <div 
-              className="absolute inset-0 bg-cover bg-center z-0 transition-all duration-700 ease-out scale-100 group-hover:scale-103 opacity-30 group-hover:opacity-50 pointer-events-none"
-              style={{ backgroundImage: 'url(/feature-ai-dispatcher.png)' }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-zinc-950/20 z-0 pointer-events-none" />
-
-            <div className="relative z-10 flex flex-col justify-between h-full w-full">
-              <div className="flex justify-between items-start">
-                <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
-                  <Terminal className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">01</span>
-              </div>
-
-              <div className="relative flex-1 flex flex-col justify-end mt-4">
-                {/* Default State */}
-                <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
-                  <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">AI Command Dispatcher</h3>
-                  <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Autopilot heuristic routing matching NDRF, SDRF, and fire response crews with disaster parameters using Musi river flow constraints.</p>
-                  <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
-                    <span>↓</span> Hover to Explore
-                  </div>
-                </div>
-
-                {/* Hover State */}
-                <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
-                  <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">AI Command Dispatcher</h3>
-                  <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Detect Disaster Zones
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Find Nearest Response Team
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Optimize Rescue Routes
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Dispatch Emergency Units
-                    </li>
-                  </ul>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentView('admin');
-                    }}
-                    className="relative group/btn w-full block text-left text-[10px] font-bold font-mono uppercase tracking-wider outline-none cursor-pointer select-none"
-                  >
-                    {/* Black Offset Layer */}
-                    <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/btn:-translate-x-2 md:group-hover/btn:translate-y-2 z-0" />
-                    
-                    {/* White Foreground Box */}
-                    <div className="relative z-10 w-full px-4 py-2.5 bg-white border border-black text-black flex items-center justify-between transition-transform duration-300 md:group-hover/btn:-translate-y-0.5 rounded-none">
-                      <span>Launch Feature</span>
-                      <span className="text-black transition-colors duration-300 group-hover/btn:text-red-600 font-bold">→</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
+        {/* Live Status Ticker */}
+        <section className="bg-zinc-950 border-y border-white/5 py-3 overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6 flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-zinc-500">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+              <span className="text-emerald-400 font-bold">LIVE PLATFORM TELEMETRY</span>
+            </div>
+            <div className="flex gap-x-6 animate-pulse truncate">
+              <span>Hyderabad: ACTIVE</span>
+              <span>Khammam Depot: SECURE</span>
+              <span>Warangal HQ: MONITORING</span>
+              <span>Landslide Risk Forecast: CALCULATED</span>
+            </div>
+            <div className="hidden md:block text-[8px] text-cyan-500/80">
+              DEMO DATA SIMULATION
             </div>
           </div>
+        </section>
 
-          {/* Card 2: Live Weather Overlay */}
-          <div 
-            onClick={() => setCurrentView('admin')}
-            className="group relative premium-card p-6 rounded-2xl h-80 flex flex-col justify-between overflow-hidden transition-all duration-500 hover:-translate-y-2.5 hover:border-cyan-500/50 hover:bg-zinc-900/60 hover:shadow-[0_12px_40px_rgba(6,182,212,0.15)] focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 outline-none cursor-pointer"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentView('admin'); } }}
-          >
-            {/* Card Background Image with Gradient Overlay */}
-            <div 
-              className="absolute inset-0 bg-cover bg-center z-0 transition-all duration-700 ease-out scale-100 group-hover:scale-103 opacity-30 group-hover:opacity-50 pointer-events-none"
-              style={{ backgroundImage: 'url(/feature-live-weather.png)' }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-zinc-950/20 z-0 pointer-events-none" />
+        {/* Section: The Response Pipeline */}
+        <section ref={pipelineRef} className="max-w-7xl mx-auto px-6 py-20 border-b border-white/5 space-y-12 overflow-hidden w-full">
+              <div className="text-center space-y-2.5">
+                <span className={`text-[10px] font-mono text-cyan-400 uppercase tracking-widest font-bold block transition-all duration-700 transform ${
+                  pipelineVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+                }`}>
+                  Closed-Loop Coordination
+                </span>
+                <h2 className={`text-2xl md:text-3xl font-extrabold tracking-wider font-mono uppercase text-white transition-all duration-700 delay-100 transform ${
+                  pipelineVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+                }`}>
+                  The ResQAI Emergency Pipeline
+                </h2>
+                <p className={`text-[11px] text-zinc-500 font-mono max-w-xl mx-auto transition-all duration-700 delay-200 transform ${
+                  pipelineVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+                }`}>
+                  How data and actions flow through the system to guarantee optimized response when every second matters.
+                </p>
+              </div>
 
-            <div className="relative z-10 flex flex-col justify-between h-full w-full">
-              <div className="flex justify-between items-start">
-                <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+              {/* Animated Pipeline Grid */}
+              <div className={`grid grid-cols-1 md:grid-cols-7 gap-3 text-center relative font-mono text-[9px] transition-all duration-700 delay-300 transform ${
+                pipelineVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+              }`}>
+                {renderStepCard(0, '01', '🚨', 'Citizen SOS', 'SOS triggered or incident reported.')}
+                {renderConnector(0)}
+                {renderStepCard(1, '02', '🤖', 'AI Vetting', 'Gemini vision checks authenticity.')}
+                {renderConnector(1)}
+                {renderStepCard(2, '03', '📍', 'Location Lock', 'Telemetry coordinates mapped.')}
+                {renderConnector(2)}
+                {renderStepCard(3, '04', '⚖️', 'Priority Queue', 'Emergency queued based on severity.')}
+                {renderConnector(3)}
+                {renderStepCard(4, '05', '🚒', 'Auto Dispatch', 'Nearest fleet responder assigned.')}
+                {renderConnector(4)}
+                {renderStepCard(5, '06', '🛡️', 'EOC Oversight', 'Live telemetry tracking in EOC.')}
+                {renderConnector(5)}
+                {renderStepCard(6, '07', '✓', 'Resolution', 'Responder arrives & incident resolved.')}
+              </div>
+            </section>
+
+
+
+        {/* Section: Platform Architecture & Roles */}
+        <section className="max-w-7xl mx-auto px-6 py-20 space-y-12">
+          <div className="text-center space-y-2.5">
+            <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest font-bold">Platform Stakeholders</span>
+            <h2 className="text-2xl md:text-3xl font-extrabold tracking-wider font-mono uppercase text-white">
+              Connective Platform Roles
+            </h2>
+            <p className="text-[11px] text-zinc-500 font-mono max-w-xl mx-auto">
+              Connecting citizens, AI intelligence, responders, and EOC command command structures.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 font-mono text-xs">
+            {/* Stakeholder 1 */}
+            <div className="group glass-panel p-5 rounded-2xl border border-white/5 flex flex-col justify-between h-72 transition-all duration-500 hover:scale-[1.03] hover:-translate-y-2 hover:bg-zinc-900/40 hover:border-red-500/30 hover:shadow-[0_10px_30px_rgba(239,68,68,0.15)]">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-red-950/20 border border-red-500/20 flex items-center justify-center text-red-400 transition-all duration-300 group-hover:bg-red-500/20 group-hover:text-red-300 group-hover:border-red-500/40 group-hover:shadow-[0_0_12px_rgba(239,68,68,0.3)]">
+                  <User className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-white uppercase text-[11px] transition-colors duration-300 group-hover:text-red-400">01 — CITIZEN PORTAL</h3>
+                <p className="text-zinc-400 text-[9.5px] leading-relaxed transition-colors duration-300 group-hover:text-zinc-300">
+                  Trigger urgent one-click SOS broadcasts, report disaster situations with photo uploads, and track assigned responder telemetry in real-time.
+                </p>
+              </div>
+              <button
+                onClick={() => setCurrentView('citizen')}
+                className="w-full text-center py-2 bg-red-950/30 border border-red-500/30 text-red-400 text-[9px] font-bold uppercase rounded-lg transition-all duration-300 group-hover:bg-red-500/20 group-hover:border-red-500/50 group-hover:text-white cursor-pointer hover:shadow-[0_0_15px_rgba(239,68,68,0.25)]"
+              >
+                Access SOS Portal
+              </button>
+            </div>
+
+            {/* Stakeholder 2 */}
+            <div className="group glass-panel p-5 rounded-2xl border border-white/5 flex flex-col justify-between h-72 transition-all duration-500 hover:scale-[1.03] hover:-translate-y-2 hover:bg-zinc-900/40 hover:border-purple-500/30 hover:shadow-[0_10px_30px_rgba(168,85,247,0.15)]">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-950/20 border border-purple-500/20 flex items-center justify-center text-purple-400 transition-all duration-300 group-hover:bg-purple-500/20 group-hover:text-purple-300 group-hover:border-purple-500/40 group-hover:shadow-[0_0_12px_rgba(168,85,247,0.3)]">
+                  <Cpu className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-white uppercase text-[11px] transition-colors duration-300 group-hover:text-purple-400">02 — AI DISPATCH ENGINE</h3>
+                <p className="text-zinc-400 text-[9.5px] leading-relaxed transition-colors duration-300 group-hover:text-zinc-300">
+                  Analyze reports using Gemini Vision AI model checking, auto-compute incident severity levels, and route the closest patrol units.
+                </p>
+              </div>
+              <span className="w-full text-center py-2 bg-purple-950/15 border border-purple-500/20 text-purple-400 text-[9px] font-bold uppercase rounded-lg block select-none transition-all duration-300 group-hover:bg-purple-500/10 group-hover:border-purple-500/40 group-hover:text-purple-300">
+                AI Pipeline Engine
+              </span>
+            </div>
+
+            {/* Stakeholder 3 */}
+            <div className="group glass-panel p-5 rounded-2xl border border-white/5 flex flex-col justify-between h-72 transition-all duration-500 hover:scale-[1.03] hover:-translate-y-2 hover:bg-zinc-900/40 hover:border-blue-500/30 hover:shadow-[0_10px_30px_rgba(59,130,246,0.15)]">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-950/20 border border-blue-500/20 flex items-center justify-center text-blue-400 transition-all duration-300 group-hover:bg-blue-500/20 group-hover:text-blue-300 group-hover:border-blue-500/40 group-hover:shadow-[0_0_12px_rgba(59,130,246,0.3)]">
                   <Compass className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">02</span>
+                <h3 className="font-bold text-white uppercase text-[11px] transition-colors duration-300 group-hover:text-blue-400">03 — EMERGENCY RESPONDERS</h3>
+                <p className="text-zinc-400 text-[9.5px] leading-relaxed transition-colors duration-300 group-hover:text-zinc-300">
+                  Emergency cruisers, medical squads, and fire teams receive active navigation nodes, telemetry directions, and update response states.
+                </p>
               </div>
-
-              <div className="relative flex-1 flex flex-col justify-end mt-4">
-                {/* Default State */}
-                <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
-                  <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">Live Weather Overlay</h3>
-                  <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Track real-time rainfall radars, wind vector warnings, and lightning strikes. Toggle predictive Musi river flooding heatmaps.</p>
-                  <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
-                    <span>↓</span> Hover to Explore
-                  </div>
-                </div>
-
-                {/* Hover State */}
-                <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
-                  <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">Live Weather Overlay</h3>
-                  <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Live Rainfall Radar
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Wind Vector Trackers
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Flood Heatmap Simulation
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Lightning Strike Sensors
-                    </li>
-                  </ul>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentView('admin');
-                    }}
-                    className="relative group/btn w-full block text-left text-[10px] font-bold font-mono uppercase tracking-wider outline-none cursor-pointer select-none"
-                  >
-                    {/* Black Offset Layer */}
-                    <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/btn:-translate-x-2 md:group-hover/btn:translate-y-2 z-0" />
-                    
-                    {/* White Foreground Box */}
-                    <div className="relative z-10 w-full px-4 py-2.5 bg-white border border-black text-black flex items-center justify-between transition-transform duration-300 md:group-hover/btn:-translate-y-0.5 rounded-none">
-                      <span>Launch Feature</span>
-                      <span className="text-black transition-colors duration-300 group-hover/btn:text-red-600 font-bold">→</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
+              <span className="w-full text-center py-2 bg-blue-950/15 border border-blue-500/20 text-blue-400 text-[9px] font-bold uppercase rounded-lg block select-none transition-all duration-300 group-hover:bg-blue-500/10 group-hover:border-blue-500/40 group-hover:text-blue-300">
+                Field Fleets
+              </span>
             </div>
-          </div>
 
-          {/* Card 3: Citizen SOS Integration */}
-          <div 
-            onClick={() => setCurrentView('citizen')}
-            className="group relative premium-card p-6 rounded-2xl h-80 flex flex-col justify-between overflow-hidden transition-all duration-500 hover:-translate-y-2.5 hover:border-cyan-500/50 hover:bg-zinc-900/60 hover:shadow-[0_12px_40px_rgba(6_182,212,0.15)] focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 outline-none cursor-pointer"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentView('citizen'); } }}
-          >
-            {/* Card Background Image with Gradient Overlay */}
-            <div 
-              className="absolute inset-0 bg-cover bg-center z-0 transition-all duration-700 ease-out scale-100 group-hover:scale-103 opacity-30 group-hover:opacity-50 pointer-events-none"
-              style={{ backgroundImage: 'url(/feature-citizen-sos.png)' }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-zinc-950/20 z-0 pointer-events-none" />
-
-            <div className="relative z-10 flex flex-col justify-between h-full w-full">
-              <div className="flex justify-between items-start">
-                <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
-                  <Activity className="w-5 h-5" />
+            {/* Stakeholder 4 */}
+            <div className="group glass-panel p-5 rounded-2xl border border-white/5 flex flex-col justify-between h-72 transition-all duration-500 hover:scale-[1.03] hover:-translate-y-2 hover:bg-zinc-900/40 hover:border-cyan-500/30 hover:shadow-[0_10px_30px_rgba(6,182,212,0.15)]">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-950/20 border border-cyan-500/20 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:bg-cyan-500/20 group-hover:text-cyan-300 group-hover:border-cyan-500/40 group-hover:shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+                  <Shield className="w-5 h-5" />
                 </div>
-                <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">03</span>
+                <h3 className="font-bold text-white uppercase text-[11px] transition-colors duration-300 group-hover:text-cyan-400">04 — EOC COMMAND HUB</h3>
+                <p className="text-zinc-400 text-[9.5px] leading-relaxed transition-colors duration-300 group-hover:text-zinc-300">
+                  Synchronize municipal resource databases, monitor active incident matrices, override dispatch settings, and coordinate the state disaster grids.
+                </p>
               </div>
-
-              <div className="relative flex-1 flex flex-col justify-end mt-4">
-                {/* Default State */}
-                <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
-                  <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">Citizen SOS Integration</h3>
-                  <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Allows citizen-end access to voluntary relief hubs, medical beds indices, and a simple interface to file search-and-rescue tickets.</p>
-                  <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
-                    <span>↓</span> Hover to Explore
-                  </div>
-                </div>
-
-                {/* Hover State */}
-                <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
-                  <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">Citizen SOS Integration</h3>
-                  <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Voluntary Relief Bed Count
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Public Evacuation Maps
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> AI Vision Intake Vetting
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-emerald-500">✓</span> Mobile GPS Signal Lock
-                    </li>
-                  </ul>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentView('citizen');
-                    }}
-                    className="relative group/btn w-full block text-left text-[10px] font-bold font-mono uppercase tracking-wider outline-none cursor-pointer select-none"
-                  >
-                    {/* Black Offset Layer */}
-                    <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/btn:-translate-x-2 md:group-hover/btn:translate-y-2 z-0" />
-                    
-                    {/* White Foreground Box */}
-                    <div className="relative z-10 w-full px-4 py-2.5 bg-white border border-black text-black flex items-center justify-between transition-transform duration-300 md:group-hover/btn:-translate-y-0.5 rounded-none">
-                      <span>Launch Feature</span>
-                      <span className="text-black transition-colors duration-300 group-hover/btn:text-red-600 font-bold">→</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
+              <button
+                onClick={() => setCurrentView('admin')}
+                className="w-full text-center py-2 bg-cyan-950/30 border border-cyan-500/30 text-cyan-400 text-[9px] font-bold uppercase rounded-lg transition-all duration-300 group-hover:bg-cyan-500/20 group-hover:border-cyan-500/50 group-hover:text-white cursor-pointer hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]"
+              >
+                Access Command Dashboard
+              </button>
             </div>
           </div>
         </section>
@@ -789,6 +988,12 @@ function HomeDashboard() {
   if (currentView === 'citizen') {
     return (
       <div className="min-h-screen bg-zinc-950 text-white selection:bg-cyan-500 selection:text-black font-sans flex flex-col">
+        {isDemoMode && (
+          <div className="bg-amber-950/95 backdrop-blur border-b border-amber-500/30 text-amber-400 font-mono text-[9px] py-1.5 px-6 text-center uppercase tracking-widest sticky top-0 z-[100] flex items-center justify-center gap-2 select-none flex-shrink-0">
+            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>
+            <span>Evaluation Demo Mode Active — Simulated telemetry grid database</span>
+          </div>
+        )}
         {/* Navigation */}
         <nav className="border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -1012,7 +1217,14 @@ function HomeDashboard() {
   // DASHBOARD WORKSPACE (PALANTIR REDESIGN)
   // ==========================================
   return (
-    <div className="h-screen w-screen overflow-hidden bg-zinc-950 text-white font-mono flex relative selection:bg-cyan-500 selection:text-black">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-zinc-950 text-white font-mono selection:bg-cyan-500 selection:text-black">
+      {isDemoMode && (
+        <div className="bg-amber-950/95 backdrop-blur border-b border-amber-500/30 text-amber-400 font-mono text-[9px] py-1.5 px-6 text-center uppercase tracking-widest z-[100] flex items-center justify-center gap-2 select-none flex-shrink-0">
+          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>
+          <span>Evaluation Demo Mode Active — Simulated telemetry grid database</span>
+        </div>
+      )}
+      <div className="flex-1 flex relative overflow-hidden">
       
       {/* Toast Notification HUD stack */}
       <div className="toast-container fixed top-5 right-5 space-y-2 max-w-sm pointer-events-none z-[9999]">
@@ -2043,6 +2255,7 @@ function HomeDashboard() {
         />
       </div>
     </div>
+  </div>
   );
 }
 
@@ -2056,17 +2269,159 @@ export default function HomePortal() {
 
 function HomePortalContent() {
   const auth = useAuth();
+  const [initStep, setInitStep] = useState<0 | 1 | 2 | 3 | 4>(0);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
-  if (auth.loading) {
+  // Loading steps timeline
+  useEffect(() => {
+    if (initStep === 4 || initStep === 3) return;
+
+    const timers: NodeJS.Timeout[] = [];
+
+    // Step 0 -> 1 (emergency network): after 600ms
+    timers.push(setTimeout(() => {
+      setInitStep(prev => prev === 0 ? 1 : prev);
+    }, 700));
+
+    // Step 1 -> 2 (incident intel): after 1300ms
+    timers.push(setTimeout(() => {
+      setInitStep(prev => prev === 1 ? 2 : prev);
+    }, 1400));
+
+    // Step 2 -> 3 (Ready): after 2000ms, only if auth resolved loading
+    timers.push(setTimeout(() => {
+      if (!auth.loading) {
+        setInitStep(3);
+      }
+    }, 2100));
+
+    // Hard Handshake Timeout: after 3200ms
+    timers.push(setTimeout(() => {
+      if (auth.loading) {
+        setInitStep(4); // Trigger EOC Connection Unavailable Error Screen
+      } else {
+        setInitStep(3); // Success transition
+      }
+    }, 3200));
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [initStep, auth.loading, retryCount]);
+
+  const handleRetry = () => {
+    setInitStep(0);
+    setRetryCount(prev => prev + 1);
+  };
+
+  const handleContinueDemo = () => {
+    setIsDemoMode(true);
+  };
+
+  // If ready or continuing in demo mode, show main EOC app
+  if ((initStep === 3 && !auth.loading) || isDemoMode) {
+    return <HomeDashboard isDemoMode={isDemoMode} />;
+  }
+
+  // Connection Unavailable screen
+  if (initStep === 4) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center font-mono">
-        <Loader2 className="w-8 h-8 text-cyan-500 animate-spin mb-3" />
-        <span className="text-[9px] text-cyan-500 uppercase tracking-widest animate-pulse">
-          Establishing EOC Secure Handshake...
-        </span>
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center font-mono p-6 text-center select-none text-zinc-300">
+        <div className="max-w-md w-full border border-red-500/30 bg-red-950/10 p-6 rounded-2xl space-y-6 shadow-2xl relative overflow-hidden">
+          {/* Top warning accent */}
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 via-amber-500 to-red-500 animate-pulse"></div>
+          
+          <div className="flex justify-center text-red-500">
+            <AlertTriangle className="w-12 h-12 animate-bounce" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-sm font-bold uppercase tracking-wider text-red-500">
+              EOC CONNECTION UNAVAILABLE
+            </h1>
+            <p className="text-[10px] text-zinc-500 uppercase leading-relaxed">
+              Some live command network databases could not be reached. Connection handshake timed out.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleRetry}
+              className="w-full py-2.5 bg-red-950/40 hover:bg-red-900/40 border border-red-500/50 hover:border-red-500 text-red-400 font-bold uppercase rounded-xl transition text-[10px] tracking-wider cursor-pointer active:scale-[0.98]"
+            >
+              🔄 Retry Connection
+            </button>
+            <button
+              onClick={handleContinueDemo}
+              className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-cyan-500/40 text-zinc-300 hover:text-cyan-400 font-bold uppercase rounded-xl transition text-[10px] tracking-wider cursor-pointer active:scale-[0.98]"
+            >
+              🛡️ Continue in Demo Mode
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  return <HomeDashboard />;
+  // Active secure handshake loading screen
+  return (
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center font-mono select-none p-6">
+      <div className="max-w-sm w-full space-y-8 text-center">
+        {/* Main Branding Focus */}
+        <div className="space-y-2">
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-wider text-white uppercase leading-none">
+            RESQAI
+          </h1>
+          <h2 className="text-xs md:text-sm font-bold tracking-widest text-cyan-400 uppercase">
+            AI-Powered Disaster Response
+          </h2>
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
+            Detect. Coordinate. Respond. Save lives.
+          </p>
+        </div>
+
+        <div className="w-12 h-12 mx-auto flex items-center justify-center">
+          <Loader2 className="w-6 h-6 text-cyan-500 animate-spin" />
+        </div>
+
+        {/* System Initializing Status Box */}
+        <div className="bg-zinc-900/60 border border-white/5 p-4 rounded-xl text-left text-[9px] uppercase tracking-wider font-mono space-y-3">
+          <div className="text-[10px] font-bold text-white tracking-widest border-b border-white/5 pb-1.5 flex items-center justify-between">
+            <span>SYSTEM INITIALIZING...</span>
+            <span className="text-[7px] text-zinc-500 normal-case italic font-normal">
+              EOC Secure Handshake • Connected
+            </span>
+          </div>
+
+          <div className="space-y-2 text-zinc-400">
+            <div className="flex justify-between items-center">
+              <span>EOC</span>
+              <span className={initStep >= 0 ? "text-emerald-400 font-bold animate-pulse" : "text-zinc-600"}>
+                {initStep >= 0 ? "● CONNECTED" : "○ OFFLINE"}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span>AI ENGINE</span>
+              <span className={initStep >= 1 ? "text-emerald-400 font-bold animate-pulse" : "text-zinc-600"}>
+                {initStep >= 1 ? "● READY" : "○ SYNCING"}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span>LIVE MAP</span>
+              <span className={initStep >= 2 ? "text-emerald-400 font-bold animate-pulse" : "text-zinc-600"}>
+                {initStep >= 2 ? "● READY" : "○ CACHING"}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span>RESPONSE NETWORK</span>
+              <span className={initStep >= 2 ? "text-emerald-400 font-bold animate-pulse" : "text-zinc-600"}>
+                {initStep >= 2 ? "● READY" : "○ INDEXING"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

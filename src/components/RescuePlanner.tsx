@@ -164,7 +164,7 @@ export default function RescuePlanner({
                 <select
                   value={selectedCategory}
                   onChange={(e) => onChangeCategory?.(e.target.value)}
-                  className="bg-zinc-900 border border-white/10 text-slate-300 font-mono text-[9px] px-2 py-1 rounded cursor-pointer hover:border-cyan-500/50 transition outline-none"
+                  className="bg-cyan-950/20 border border-cyan-500/50 text-cyan-400 font-bold font-mono text-[9px] px-2 py-1 rounded cursor-pointer transition-all duration-300 outline-none shadow-[0_0_8px_rgba(6,182,212,0.2)] hover:border-cyan-450 hover:shadow-[0_0_12px_rgba(6,182,212,0.4)]"
                 >
                   {[
                     'Disasters',

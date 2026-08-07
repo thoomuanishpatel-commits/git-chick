@@ -166,7 +166,10 @@ export function useSimulation() {
         if (incError) throw incError;
 
         if (dbIncidents && dbIncidents.length > 0) {
-          setIncidents(dbIncidents as Incident[]);
+          // Merge database incidents with our premium defaultIncidents (ensuring unique IDs)
+          const dbIds = new Set(dbIncidents.map((i) => i.id));
+          const uniqueDefaults = defaultIncidents.filter((i) => !dbIds.has(i.id));
+          setIncidents([...dbIncidents, ...uniqueDefaults] as Incident[]);
         } else {
           await client.from('incidents').insert(defaultIncidents);
           setIncidents(defaultIncidents);
@@ -201,7 +204,11 @@ export function useSimulation() {
             crewNames: typeof v.crewNames === 'string' ? JSON.parse(v.crewNames) : (v.crewNames || []),
             location: typeof v.location === 'string' ? JSON.parse(v.location) : v.location
           }));
-          setVehicles(parsedVehicles as Vehicle[]);
+          
+          // Merge database vehicles with our premium generated fleet (ensuring unique IDs)
+          const dbIds = new Set(parsedVehicles.map(v => v.id));
+          const uniqueDefaults = generateInitialFleet().filter(v => !dbIds.has(v.id));
+          setVehicles([...parsedVehicles, ...uniqueDefaults] as Vehicle[]);
         } else {
           const initialFleet = generateInitialFleet();
           await client.from('vehicles').insert(initialFleet);
@@ -548,10 +555,11 @@ export function useSimulation() {
         const { hazards: currentHazards, roadClosures: currentClosures } = stateRef.current;
         const updated = prevVehicles.map((v) => {
           if ((v.status === 'EnRoute' || v.status === 'Idle') && v.path.length > 0) {
-            // Calculate distance covered in simulated time step (0.5s real time = 0.02h simulated time)
-            // Speed is in km/h. Distance = speed * time
-            const speed = v.status === 'Idle' ? 40 : v.speed; // Patrol at 40 km/h, emergency at full speed
-            const distToTravel = speed * 0.02; // in km
+            // For emergency dispatches, hurry up and cover the distance in ~3-4 ticks (1.5s - 2.0s)
+            const remainingDist = getDistanceKm(v.location, v.path[v.path.length - 1]);
+            const distToTravel = v.status === 'Idle' 
+              ? 40 * 0.02 
+              : Math.max(2.5, remainingDist / 3.0);
 
             const { nextLocation, nextIndex } = advanceVehicleAlongPath(v.path, v.pathIndex, distToTravel);
 

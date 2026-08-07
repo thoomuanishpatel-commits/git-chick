@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Lock, User, AlertCircle, Eye, EyeOff, Loader2, Compass, Radio, Server, GraduationCap } from 'lucide-react';
+import { Shield, Lock, User, AlertCircle, Eye, EyeOff, Loader2, Compass, Radio, Server, GraduationCap, ArrowRight } from 'lucide-react';
 
 export default function Login({ onBackToPortal }: { onBackToPortal?: () => void }) {
   const { login, loginAsExaminer, inactivityWarning, dismissInactivityWarning } = useAuth();
@@ -368,10 +368,11 @@ export default function Login({ onBackToPortal }: { onBackToPortal?: () => void 
             type="button"
             onClick={handleExaminerLogin}
             disabled={isSubmitting || authSuccess}
-            className="w-full py-3 bg-zinc-900/60 hover:bg-zinc-800 border border-white/10 hover:border-cyan-500/50 text-zinc-200 hover:text-white font-bold uppercase rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-[10px] tracking-wider cursor-pointer disabled:opacity-50 disabled:pointer-events-none active:scale-[0.99] shadow-[0_2px_10px_rgba(0,0,0,0.3)]"
+            className="cyber-pulse-button group w-full py-3 bg-cyan-950/20 hover:bg-cyan-900/35 border border-cyan-500/80 hover:border-cyan-400 text-cyan-300 hover:text-cyan-100 font-extrabold uppercase rounded-xl transition-all duration-300 flex items-center justify-center gap-2.5 text-[10px] tracking-wider cursor-pointer disabled:opacity-50 disabled:pointer-events-none active:scale-[0.99] hover:shadow-[0_0_35px_rgba(6,182,212,0.65)]"
           >
-            <GraduationCap className="w-4 h-4 text-cyan-400" />
+            <GraduationCap className="w-4 h-4 text-cyan-400 transition-all duration-300 group-hover:scale-115 group-hover:rotate-3 group-hover:text-cyan-200" />
             <span>Login for Instructors / Examiners</span>
+            <ArrowRight className="w-3.5 h-3.5 ml-1.5 transition-transform duration-300 group-hover:translate-x-1.5 text-cyan-400 group-hover:text-cyan-200" />
           </button>
           
           <p className="mt-1.5 text-center text-[8px] font-mono text-zinc-500 uppercase tracking-wider">
@@ -404,6 +405,23 @@ export default function Login({ onBackToPortal }: { onBackToPortal?: () => void 
         }
         .animate-spin-slow {
           animation: spin 40s linear infinite;
+        }
+        @keyframes cyber-button-pulse {
+          0% {
+            border-color: rgba(6, 182, 212, 0.45);
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.2);
+          }
+          50% {
+            border-color: rgba(6, 182, 212, 1.0);
+            box-shadow: 0 0 28px rgba(6, 182, 212, 0.55);
+          }
+          100% {
+            border-color: rgba(6, 182, 212, 0.45);
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.2);
+          }
+        }
+        .cyber-pulse-button {
+          animation: cyber-button-pulse 2s infinite ease-in-out;
         }
       `}</style>
     </div>

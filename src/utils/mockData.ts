@@ -357,6 +357,295 @@ export const defaultIncidents: Incident[] = [
       recommendedDepartment: 'GHMC Engineering Branch',
       reportSummary: 'Asphalt cold-mix repair dispatch scheduled.'
     }
+  },
+  {
+    id: 'inc-111',
+    type: 'Broken Traffic Signal',
+    category: 'Utility Failures',
+    severity: 40,
+    status: 'Pending',
+    location: { lat: 17.3880, lng: 78.4810 }, // Abids Intersection, Hyderabad
+    description: 'Traffic signals offline at major multi-arm junction. Gridlock forming rapidly with high risk of collisions. Manual traffic redirection required.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['Traffic Police Patrol'],
+    reportedAt: '10:40:15',
+    reporter: 'Sensor Network',
+    aiPriority: 'MEDIUM',
+    etaResolution: 1.0,
+    assignedVehicleId: null,
+    civicDetails: {
+      recommendedDepartment: 'Hyderabad Traffic Police Control',
+      reportSummary: 'Traffic dispatch requested for signal restoration.'
+    }
+  },
+  {
+    id: 'inc-112',
+    type: 'Fallen Electric Pole',
+    category: 'Utility Failures',
+    severity: 62,
+    status: 'Pending',
+    location: { lat: 17.9620, lng: 79.5850 }, // Hanamkonda, Warangal
+    description: 'Electric pole snapped due to strong wind gusts. Exposed high-voltage lines resting on metal guard rails. Utility shutdown initiated.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['TSSPDCL Power Repair Alpha'],
+    reportedAt: '10:41:40',
+    reporter: 'Citizen SOS',
+    aiPriority: 'HIGH',
+    etaResolution: 2.0,
+    assignedVehicleId: null,
+    civicDetails: {
+      recommendedDepartment: 'TSSPDCL Electrical Operations',
+      reportSummary: 'Line isolation and pole reconstruction crew dispatched.'
+    }
+  },
+  {
+    id: 'inc-113',
+    type: 'Sewage Overflow',
+    category: 'Utility Failures',
+    severity: 35,
+    status: 'Pending',
+    location: { lat: 17.4120, lng: 78.4910 }, // Musheerabad, Hyderabad
+    description: 'Main drainage conduit clogged with plastic refuse, causing raw effluent overflow onto main commercial street. Extreme public health hazard.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['Municipal Sewage Maintenance'],
+    reportedAt: '10:43:10',
+    reporter: 'Sensor Network',
+    aiPriority: 'LOW',
+    etaResolution: 3.0,
+    assignedVehicleId: null,
+    civicDetails: {
+      recommendedDepartment: 'HMWS&SB Drainage Wing',
+      reportSummary: 'High-pressure jetting machine dispatched.'
+    }
+  },
+  {
+    id: 'inc-114',
+    type: 'Fallen Trees',
+    category: 'Disaster Response',
+    severity: 48,
+    status: 'Pending',
+    location: { lat: 17.2550, lng: 80.1480 }, // Khammam NH-365
+    description: 'Large banyan tree uprooted across NH-365 road corridor. Single-lane bottleneck blocking outbound commercial freight transport.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['Road Clearance JCB', 'Forest Dept Crew'],
+    reportedAt: '10:45:00',
+    reporter: 'Emergency Patrol',
+    aiPriority: 'MEDIUM',
+    etaResolution: 1.5,
+    assignedVehicleId: null
+  },
+  {
+    id: 'inc-115',
+    type: 'Open Manhole',
+    category: 'Infrastructure Issues',
+    severity: 55,
+    status: 'Pending',
+    location: { lat: 17.4410, lng: 78.4975 }, // Secunderabad Station Road
+    description: 'Manhole cover displaced during recent inundation flow. Obscured under waterlogging, presenting a critical risk to pedestrians and bikes.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['Municipal Road Crew'],
+    reportedAt: '10:46:25',
+    reporter: 'Citizen SOS',
+    aiPriority: 'HIGH',
+    etaResolution: 0.5,
+    assignedVehicleId: null,
+    civicDetails: {
+      recommendedDepartment: 'GHMC Ward Engineering',
+      reportSummary: 'Concrete barricade placement and cover replacement.'
+    }
+  },
+  {
+    id: 'inc-116',
+    type: 'Wild Animal Rescue',
+    category: 'Animal Rescue',
+    severity: 68,
+    status: 'Pending',
+    location: { lat: 17.3210, lng: 78.4110 }, // Rajendranagar, Hyderabad
+    description: 'Leopard sighted inside the perimeter fence of an agricultural research institute. Animal appears distressed. Forest department team requested.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['Wildlife Rescue Team', 'Police Patrol'],
+    reportedAt: '10:48:00',
+    reporter: 'Emergency Patrol',
+    aiPriority: 'HIGH',
+    etaResolution: 2.5,
+    assignedVehicleId: null
+  },
+  {
+    id: 'inc-117',
+    type: 'Missing Person',
+    category: 'Disaster Response',
+    severity: 70,
+    status: 'Pending',
+    location: { lat: 17.3400, lng: 77.8800 }, // Ananthagiri Hills Forest
+    description: 'Two tourists reported missing inside forest trekking corridors. Last telemetry signal received 6 hours ago. Heavy rain hampers search.',
+    casualtyEstimate: 0,
+    trappedCount: 2,
+    requiredResources: ['SDRF Rescue Team', 'Begumpet Copter', 'Scout Drone'],
+    reportedAt: '10:50:12',
+    reporter: 'Citizen SOS',
+    aiPriority: 'HIGH',
+    etaResolution: 6.0,
+    assignedVehicleId: null
+  },
+  {
+    id: 'inc-118',
+    type: 'Water Contamination',
+    category: 'Utility Failures',
+    severity: 50,
+    status: 'Pending',
+    location: { lat: 17.5210, lng: 78.4620 }, // Jeedimetla, Hyderabad
+    description: 'Acidic chemical discharge registered near domestic water canal. Visible blue coloration in water. Intake systems closed as precaution.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['HMWS&SB Lab Crew', 'SDRF Hazmat Team'],
+    reportedAt: '10:51:50',
+    reporter: 'Sensor Network',
+    aiPriority: 'MEDIUM',
+    etaResolution: 4.0,
+    assignedVehicleId: null,
+    civicDetails: {
+      recommendedDepartment: 'Telangana Pollution Control Board',
+      reportSummary: 'Water sampling and source sealing initiated.'
+    }
+  },
+  {
+    id: 'inc-119',
+    type: 'Building Safety Hazard',
+    category: 'Infrastructure Issues',
+    severity: 75,
+    status: 'Pending',
+    location: { lat: 17.4490, lng: 78.3490 }, // Gachibowli High-rise Sector
+    description: 'Deep structural fractures observed in foundational columns of a commercial building. Concrete fragments falling. Structural engineers alerted.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['GHMC Inspection Squad', 'Police Barricading'],
+    reportedAt: '10:53:15',
+    reporter: 'Citizen SOS',
+    aiPriority: 'HIGH',
+    etaResolution: 3.0,
+    assignedVehicleId: null,
+    civicDetails: {
+      recommendedDepartment: 'GHMC Town Planning Wing',
+      reportSummary: 'Immediate building evacuation and safety inspection.'
+    }
+  },
+  {
+    id: 'inc-120',
+    type: 'Dead Animal Removal',
+    category: 'Veterinary Services',
+    severity: 25,
+    status: 'Pending',
+    location: { lat: 17.3990, lng: 78.5600 }, // Outer Ring Road (ORR) L.B. Nagar
+    description: 'Stray cow carcass lying in the high-speed lane of the Outer Ring Road, causing sudden swerves by fast-moving traffic. Hazard removal needed.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['Municipal Carcass Removal Van'],
+    reportedAt: '10:55:00',
+    reporter: 'Sensor Network',
+    aiPriority: 'LOW',
+    etaResolution: 2.0,
+    assignedVehicleId: null,
+    animalRescueDetails: {
+      animalType: 'Stray Cow',
+      condition: 'Deceased',
+      recommendation: 'Dispatch GHMC Sanitation Team for carcass recovery and lane clearance.',
+      summary: 'Dead animal on highway poses high-speed collision risk.'
+    }
+  },
+  {
+    id: 'inc-121',
+    type: 'Evacuation Zone',
+    category: 'Disaster Response',
+    severity: 82,
+    status: 'Pending',
+    location: { lat: 17.5080, lng: 78.5110 }, // Alwal Lake Region, Hyderabad
+    description: 'Alwal lake water overflow imminent. Downstream colony sectors under warning. Evacuation squads deployed to relocate low-lying residents.',
+    casualtyEstimate: 0,
+    trappedCount: 45,
+    requiredResources: ['SDRF Rescue Unit', 'NDRF Evacuation Squad', 'Supply Truck'],
+    reportedAt: '10:56:45',
+    reporter: 'Sensor Network',
+    aiPriority: 'CRITICAL',
+    etaResolution: 5.0,
+    assignedVehicleId: null
+  },
+  {
+    id: 'inc-122',
+    type: 'Dangerous Animal Attack',
+    category: 'Animal Rescue',
+    severity: 42,
+    status: 'Pending',
+    location: { lat: 18.4350, lng: 79.1350 }, // Karimnagar Primary School
+    description: 'Aggressive swarm of yellow-jacket wasps nested on the rafters of a primary school entrance porch. Two students reported stung.',
+    casualtyEstimate: 2,
+    trappedCount: 0,
+    requiredResources: ['Wildlife Rescue Team', 'Ambulance'],
+    reportedAt: '10:58:30',
+    reporter: 'Citizen SOS',
+    aiPriority: 'MEDIUM',
+    etaResolution: 1.0,
+    assignedVehicleId: null
+  },
+  {
+    id: 'inc-123',
+    type: 'Monkey Nuisance',
+    category: 'Animal Rescue',
+    severity: 30,
+    status: 'Pending',
+    location: { lat: 17.9710, lng: 79.5980 }, // Hanamkonda Market
+    description: 'Troop of 30+ monkeys occupying a produce market area, grabbing supplies and aggressively chasing shoppers. Forest dept monkey traps requested.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['Wildlife Rescue Team'],
+    reportedAt: '11:00:00',
+    reporter: 'Citizen SOS',
+    aiPriority: 'LOW',
+    etaResolution: 4.0,
+    assignedVehicleId: null
+  },
+  {
+    id: 'inc-124',
+    type: 'Cattle on Road',
+    category: 'Public Safety',
+    severity: 38,
+    status: 'Pending',
+    location: { lat: 17.2180, lng: 78.4350 }, // NH-44 Shamrock Junction
+    description: 'Stray cattle herd of 15 cows resting on high-speed expressway lanes under the flyover. Heavy fog makes detection difficult.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['GHMC Animal Control Van', 'Highway Patrol'],
+    reportedAt: '11:02:10',
+    reporter: 'Emergency Patrol',
+    aiPriority: 'MEDIUM',
+    etaResolution: 1.2,
+    assignedVehicleId: null,
+    civicDetails: {
+      recommendedDepartment: 'GHMC Veterinary Section',
+      reportSummary: 'Cattle herd retrieval and highway clearing.'
+    }
+  },
+  {
+    id: 'inc-125',
+    type: 'POLICE_SOS',
+    category: 'Public Safety',
+    severity: 65,
+    status: 'Pending',
+    location: { lat: 17.3860, lng: 78.4870 }, // Koti Bus Terminus
+    description: 'Police emergency assistance requested. Rapid crowd build-up causing localized traffic blockages. Barricading teams requested.',
+    casualtyEstimate: 0,
+    trappedCount: 0,
+    requiredResources: ['Police Patrol', 'Traffic Police'],
+    reportedAt: '11:04:00',
+    reporter: 'Emergency Patrol',
+    aiPriority: 'HIGH',
+    etaResolution: 2.0,
+    assignedVehicleId: null
   }
 ];
 
@@ -816,15 +1105,26 @@ export function generateInitialFleet(): Vehicle[] {
 
   let idCounter = 13;
 
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 500; i++) {
     const facility = spawnFacilities[Math.floor(Math.random() * spawnFacilities.length)];
-    const type = facility.types[Math.floor(Math.random() * facility.types.length)] as VehicleType;
+    
+    // Bias generation towards Fire Trucks (35%) and Ambulances (35%)
+    const rand = Math.random();
+    let type: VehicleType;
+    if (rand < 0.35) {
+      type = 'Fire Truck';
+    } else if (rand < 0.70) {
+      type = 'Ambulance';
+    } else {
+      type = facility.types[Math.floor(Math.random() * facility.types.length)] as VehicleType;
+    }
+    
     const names = vehicleNamesMap[type] || ['Govt Emergency Unit'];
     const baseName = names[Math.floor(Math.random() * names.length)];
     const name = `${baseName} ${idCounter}`;
 
-    const latOffset = (Math.random() - 0.5) * 0.025;
-    const lngOffset = (Math.random() - 0.5) * 0.025;
+    const latOffset = (Math.random() - 0.5) * 0.035;
+    const lngOffset = (Math.random() - 0.5) * 0.035;
     const location = {
       lat: facility.loc.lat + latOffset,
       lng: facility.loc.lng + lngOffset

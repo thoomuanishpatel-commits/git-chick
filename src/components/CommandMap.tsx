@@ -52,7 +52,9 @@ function MapCenterHandler({
   const map = useMap();
   useEffect(() => {
     if (userLocation) {
-      map.flyTo([userLocation.lat, userLocation.lng], 14, {
+      const zoom = 14;
+      const lngOffset = 0.12 / Math.pow(2, zoom - 12);
+      map.flyTo([userLocation.lat, userLocation.lng + lngOffset], zoom, {
         animate: true,
         duration: 1.5,
       });
@@ -69,14 +71,19 @@ function MapCenterHandler({
         zoom = 14; // Area-based view
       }
       
+      // Calculate longitude offset so the focused point centers in the visible left half of the screen
+      const lngOffset = 0.12 / Math.pow(2, zoom - 12);
+      
       // Step 2: Smooth Fly-to easement transition
-      map.flyTo([selectedIncident.location.lat, selectedIncident.location.lng], zoom, {
+      map.flyTo([selectedIncident.location.lat, selectedIncident.location.lng + lngOffset], zoom, {
         animate: true,
         duration: 2.0, // 2-second flight time
       });
     } else if (selectedVehicle) {
+      const zoom = 16;
+      const lngOffset = 0.12 / Math.pow(2, zoom - 12);
       // Step 3: Smooth fly-to vehicle coordinate zoom (close focus)
-      map.flyTo([selectedVehicle.location.lat, selectedVehicle.location.lng], 16, {
+      map.flyTo([selectedVehicle.location.lat, selectedVehicle.location.lng + lngOffset], zoom, {
         animate: true,
         duration: 2.0,
       });
