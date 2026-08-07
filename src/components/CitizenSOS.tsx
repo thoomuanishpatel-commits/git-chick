@@ -102,6 +102,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
   const [photoMime, setPhotoMime] = useState('');
   const [aiScanning, setAiScanning] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiAnalysisResult, setAiAnalysisResult] = useState<any>(null);
 
   const handleDetectLocation = () => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
@@ -137,11 +138,59 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
     setPhotoName(file.name);
     setPhotoMime(file.type);
     setAiError(null);
+    setAiAnalysisResult(null);
 
     const reader = new FileReader();
-    reader.onload = () => {
-      setPhotoBase64(reader.result as string);
-      addNotification('Emergency media attached successfully.', 'success');
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      setPhotoBase64(base64);
+      addNotification('Initiating AI vision analysis on visual media...', 'info');
+      setAiScanning(true);
+
+      try {
+        const apiKey = localStorage.getItem('gemini_api_key') || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+        const aiResponse = await analyzeImageWithGemini(base64, file.type, apiKey);
+
+        if (aiResponse.isFake) {
+          setAiError(aiResponse.description || 'AI Vision Scan: No active hazard or emergency indicators found in attachment.');
+          addNotification('SOS Blocked: AI vision indicates no active threat.', 'warning');
+          setPhotoName('');
+          setPhotoBase64('');
+          setPhotoMime('');
+          setAiAnalysisResult(null);
+        } else {
+          setAiAnalysisResult(aiResponse);
+          
+          // Map AI response type to form category
+          const type = aiResponse.type;
+          let mappedCat: 'Medical' | 'Rescue' | 'Food' | 'Water' | 'Fire' | 'Police' = 'Rescue';
+          
+          if (type === 'Fire') {
+            mappedCat = 'Fire';
+          } else if (type === 'Flood' || type === 'Flooding') {
+            mappedCat = 'Water';
+          } else if (type === 'Medical Emergency') {
+            mappedCat = 'Medical';
+          } else if (type === 'Road Blockage') {
+            mappedCat = 'Police';
+          } else if (type === 'Large Pothole') {
+            mappedCat = 'Rescue';
+          } else if (type === 'Food' || type === 'Supplies') {
+            mappedCat = 'Food';
+          }
+          
+          setSosCategory(mappedCat);
+          if (aiResponse.description) {
+            setDescription(aiResponse.description);
+          }
+          addNotification(`AI Verified: Classified emergency as "${type}" (${aiResponse.severity}% severity). Form updated.`, 'success');
+        }
+      } catch (err: any) {
+        console.error('Gemini verification error:', err);
+        addNotification('AI verification offline. Proceeding with manual input description.', 'warning');
+      } finally {
+        setAiScanning(false);
+      }
     };
     reader.onerror = () => {
       addNotification('Failed to read visual attachment.', 'warning');
@@ -156,9 +205,9 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
     setIsSubmitting(true);
     setAiError(null);
 
-    let parsedAiResult = null;
+    let parsedAiResult = aiAnalysisResult;
 
-    if (photoBase64) {
+    if (photoBase64 && !parsedAiResult) {
       setAiScanning(true);
       try {
         const apiKey = localStorage.getItem('gemini_api_key') || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
@@ -173,6 +222,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
         }
         
         parsedAiResult = aiResponse;
+        setAiAnalysisResult(aiResponse);
       } catch (err: any) {
         console.error('Gemini verification error:', err);
         addNotification('AI verification offline. Proceeding with standard EOC routing.', 'warning');
@@ -328,6 +378,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
     setPhotoBase64('');
     setPhotoMime('');
     setGpsSimulated(null);
+    setAiAnalysisResult(null);
     setIsSubmitting(false);
   };
 
@@ -415,17 +466,29 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
               />
               <button
                 type="button"
+                disabled={aiScanning}
                 onClick={() => document.getElementById('sos-photo-input')?.click()}
-                className={`w-full py-2 flex items-center justify-center space-x-1.5 border rounded-lg transition overflow-hidden text-ellipsis whitespace-nowrap px-2 ${
-                  photoBase64
+                className={`w-full py-2 flex items-center justify-center space-x-1.5 border rounded-lg transition overflow-hidden text-ellipsis whitespace-nowrap px-2 cursor-pointer ${
+                  aiScanning
+                    ? 'bg-cyan-950/20 text-cyan-400 border-cyan-500/40 animate-pulse'
+                    : photoBase64
                     ? 'bg-cyan-950/20 text-cyan-400 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.1)] font-bold'
                     : 'bg-white/5 text-slate-300 border-white/10 hover:border-slate-500'
                 }`}
               >
-                <Camera className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="truncate text-[10px]">
-                  {photoName ? photoName : 'ATTACH PHOTO'}
-                </span>
+                {aiScanning ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 flex-shrink-0 animate-spin" />
+                    <span className="truncate text-[10px]">SCANNING IMAGE...</span>
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate text-[10px]">
+                      {photoName ? photoName : 'ATTACH PHOTO'}
+                    </span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -434,6 +497,17 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
             <div className="bg-black/30 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg text-[9px] flex justify-between items-center font-mono">
               <span>LAT: {gpsSimulated.lat.toFixed(5)} | LNG: {gpsSimulated.lng.toFixed(5)}</span>
               <span>GPS Precision +/- 4m</span>
+            </div>
+          )}
+
+          {aiAnalysisResult && (
+            <div className="bg-emerald-950/20 border border-emerald-500/30 text-emerald-400 p-2.5 rounded-lg text-[9px] flex items-start gap-2 font-mono">
+              <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5 animate-pulse" />
+              <div className="leading-tight">
+                <div className="font-bold uppercase tracking-wider text-emerald-300">AI Intake Verified & Classified</div>
+                <div className="opacity-90 mt-0.5">Category: <span className="text-white font-bold">{aiAnalysisResult.type}</span> | Severity: <span className="text-white font-bold">{aiAnalysisResult.severity}%</span></div>
+                <div className="opacity-75 mt-1 italic">"{aiAnalysisResult.description}"</div>
+              </div>
             </div>
           )}
 

@@ -45,7 +45,9 @@ const FAQ_ITEMS = [
 
 function FAQ() {
   return (
-    <div className="w-full py-16 lg:py-24 border-t border-white/5 bg-zinc-950/20">
+    <div className="w-full py-16 lg:py-24 border-t border-white/5 bg-zinc-950/20 relative overflow-hidden">
+      {/* Background Wallpaper Image */}
+      <div className="custom-landing-bg" />
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           <div className="flex gap-8 flex-col sticky top-24">
@@ -59,7 +61,7 @@ function FAQ() {
                 <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight hero-gradient-text leading-tight text-left">
                   TSDMA ResQAI Intelligence Hub
                 </h2>
-                <p className="text-sm text-zinc-400 max-w-lg leading-relaxed font-mono text-left">
+                <p className="text-base text-zinc-300 max-w-lg leading-relaxed font-sans text-left">
                   Review tactical guides, telemetry details, and operational protocols for the Telangana State Emergency Operations Center automated dispatch platforms.
                 </p>
               </div>
@@ -67,14 +69,14 @@ function FAQ() {
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <Button 
                   onClick={() => window.open('tel:1070')}
-                  className="gap-2 font-mono text-xs uppercase tracking-wider h-11" 
+                  className="gap-2 font-mono text-sm uppercase tracking-wider h-12 px-5 cursor-pointer" 
                   variant="default"
                 >
                   <PhoneCall className="w-4 h-4" /> State EOC Helpline (1070)
                 </Button>
                 <Button 
                   onClick={() => window.open('tel:100')}
-                  className="gap-2 font-mono text-xs uppercase tracking-wider h-11" 
+                  className="gap-2 font-mono text-sm uppercase tracking-wider h-12 px-5 cursor-pointer" 
                   variant="outline"
                 >
                   <ShieldAlert className="w-4 h-4 text-red-400" /> Police Desk (100)
@@ -84,20 +86,20 @@ function FAQ() {
 
             <div className="bg-red-950/15 border border-red-950/30 p-4 rounded-xl flex items-start gap-3 max-w-lg">
               <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5 animate-pulse" />
-              <div className="font-mono text-[10px] leading-relaxed text-zinc-400">
+              <div className="font-mono text-xs leading-relaxed text-zinc-300">
                 <span className="text-red-400 font-bold block mb-1">CLASSIFIED INFORMATION NOTICE</span>
                 All telemetry data, fleet assignments, and incident analysis logs within this system are for official EOC usage only. Public dissemination is strictly prohibited.
               </div>
             </div>
           </div>
           
-          <Accordion type="single" collapsible className="w-full font-mono text-xs border border-white/5 rounded-2xl bg-zinc-900/10 p-6 divide-y divide-white/5">
+          <Accordion type="single" collapsible className="w-full font-sans text-sm border border-white/5 rounded-2xl bg-zinc-900/10 p-6 divide-y divide-white/5">
             {FAQ_ITEMS.map((faq, index) => (
               <AccordionItem key={index} value={"item-" + index} className="border-b-0 py-2 first:pt-0 last:pb-0">
-                <AccordionTrigger className="font-bold hover:no-underline text-zinc-200 hover:text-cyan-400 py-3 text-[11px] uppercase tracking-wider">
+                <AccordionTrigger className="font-bold hover:no-underline text-zinc-200 hover:text-cyan-400 py-4 text-sm tracking-wide text-left">
                   {faq.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-zinc-500 leading-relaxed text-[11px] pt-1 pb-3">
+                <AccordionContent className="text-zinc-400 leading-relaxed text-sm pt-2 pb-4">
                   {faq.a}
                 </AccordionContent>
               </AccordionItem>

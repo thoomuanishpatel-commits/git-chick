@@ -28,7 +28,9 @@ import {
   User,
   LogOut,
   Settings,
-  Loader2
+  Loader2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { AuthProvider, useAuth, UserRole } from '../context/AuthContext';
 import Login from '../components/Login';
@@ -80,6 +82,18 @@ function HomeDashboard() {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [userLiveLocation, setUserLiveLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const root = window.document.documentElement;
+      if (theme === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    }
+  }, [theme]);
 
   useEffect(() => {
     const updateClock = () => {
@@ -357,7 +371,7 @@ function HomeDashboard() {
 
   if (currentView === 'landing') {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white selection:bg-cyan-500 selection:text-black font-sans">
+      <div className="min-h-screen bg-zinc-950 text-white selection:bg-cyan-500 selection:text-black font-sans relative overflow-x-hidden">
         {/* Navigation */}
         <nav className="border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -371,6 +385,13 @@ function HomeDashboard() {
             </div>
             
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="p-2 rounded-lg bg-zinc-900 border border-white/10 hover:border-cyan-500/50 text-zinc-300 hover:text-white transition flex items-center justify-center cursor-pointer"
+                title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-400" />}
+              </button>
               <button
                 onClick={() => setCurrentView('citizen')}
                 className="px-3 py-1.5 rounded-lg border border-cyan-500/30 text-cyan-400 hover:bg-cyan-950/30 transition text-xs font-mono font-bold flex items-center gap-1"
@@ -389,8 +410,19 @@ function HomeDashboard() {
 
         {/* Hero Section */}
         <header className="relative py-24 md:py-36 overflow-hidden border-b border-white/5">
+          {/* Background Video (Hero Only) */}
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute top-0 left-0 w-full h-full object-cover z-0 pointer-events-none opacity-20 dark:opacity-25 transition-opacity duration-500"
+          >
+            <source src="/background.mov" type="video/quicktime" />
+            <source src="/background.mov" type="video/mp4" />
+          </video>
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-950/20 via-transparent to-transparent opacity-70 pointer-events-none"></div>
-          <div className="max-w-4xl mx-auto px-6 text-center space-y-6">
+          <div className="relative z-10 max-w-4xl mx-auto px-6 text-center space-y-6">
             <div className="inline-flex items-center space-x-2 bg-cyan-950/30 border border-cyan-800/30 px-3 py-1 rounded-full text-[10px] text-cyan-400 font-mono tracking-widest uppercase">
               <Sparkles className="w-3.5 h-3.5" /> Telangana Emergency Command Center Edition
             </div>
@@ -422,41 +454,177 @@ function HomeDashboard() {
         </header>
 
         {/* Feature Grid */}
-        <section className="max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="premium-card p-6 rounded-2xl space-y-3">
-            <div className="w-10 h-10 rounded-lg bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 font-mono">
-              01
+        <section className="max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          
+          {/* Card 1: AI Command Dispatcher */}
+          <div 
+            onClick={() => setCurrentView('admin')}
+            className="group relative premium-card p-6 rounded-2xl h-80 flex flex-col justify-between overflow-hidden transition-all duration-500 hover:-translate-y-2.5 hover:border-cyan-500/50 hover:bg-zinc-900/60 hover:shadow-[0_12px_40px_rgba(6,182,212,0.15)] focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 outline-none cursor-pointer"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentView('admin'); } }}
+          >
+            <div className="flex justify-between items-start">
+              <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+                <Terminal className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">01</span>
             </div>
-            <h3 className="font-bold text-white text-sm uppercase font-mono">AI Command Dispatcher</h3>
-            <p className="text-zinc-400 text-xs font-mono leading-relaxed">
-              Autopilot heuristic routing matching NDRF, SDRF, and fire response crews with disaster parameters using Musi river flow constraints.
-            </p>
-          </div>
-          <div className="premium-card p-6 rounded-2xl space-y-3">
-            <div className="w-10 h-10 rounded-lg bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 font-mono">
-              02
+
+            <div className="relative flex-1 flex flex-col justify-end mt-4">
+              {/* Default State */}
+              <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
+                <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">AI Command Dispatcher</h3>
+                <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Autopilot heuristic routing matching NDRF, SDRF, and fire response crews with disaster parameters using Musi river flow constraints.</p>
+                <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
+                  <span>↓</span> Hover to Explore
+                </div>
+              </div>
+
+              {/* Hover State */}
+              <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
+                <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">AI Command Dispatcher</h3>
+                <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Detect Disaster Zones
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Find Nearest Response Team
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Optimize Rescue Routes
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Dispatch Emergency Units
+                  </li>
+                </ul>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentView('admin');
+                  }}
+                  className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-black font-bold font-mono text-[10px] uppercase tracking-wider rounded-lg hover:brightness-110 transition flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  Launch Feature <span>→</span>
+                </button>
+              </div>
             </div>
-            <h3 className="font-bold text-white text-sm uppercase font-mono">Live Weather Overlay</h3>
-            <p className="text-zinc-400 text-xs font-mono leading-relaxed">
-              Track real-time rainfall radars, wind vector warnings, and lightning strikes. Toggle predictive Musi river flooding heatmaps.
-            </p>
           </div>
-          <div className="premium-card p-6 rounded-2xl space-y-3">
-            <div className="w-10 h-10 rounded-lg bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 font-mono">
-              03
+
+          {/* Card 2: Live Weather Overlay */}
+          <div 
+            onClick={() => setCurrentView('admin')}
+            className="group relative premium-card p-6 rounded-2xl h-80 flex flex-col justify-between overflow-hidden transition-all duration-500 hover:-translate-y-2.5 hover:border-cyan-500/50 hover:bg-zinc-900/60 hover:shadow-[0_12px_40px_rgba(6,182,212,0.15)] focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 outline-none cursor-pointer"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentView('admin'); } }}
+          >
+            <div className="flex justify-between items-start">
+              <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+                <Compass className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">02</span>
             </div>
-            <h3 className="font-bold text-white text-sm uppercase font-mono">Citizen SOS Integration</h3>
-            <p className="text-zinc-400 text-xs font-mono leading-relaxed">
-              Allows citizen-end access to voluntary relief hubs, medical beds indices, and a simple interface to file search-and-rescue tickets.
-            </p>
+
+            <div className="relative flex-1 flex flex-col justify-end mt-4">
+              {/* Default State */}
+              <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
+                <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">Live Weather Overlay</h3>
+                <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Track real-time rainfall radars, wind vector warnings, and lightning strikes. Toggle predictive Musi river flooding heatmaps.</p>
+                <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
+                  <span>↓</span> Hover to Explore
+                </div>
+              </div>
+
+              {/* Hover State */}
+              <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
+                <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">Live Weather Overlay</h3>
+                <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Live Rainfall Radar
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Wind Vector Trackers
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Flood Heatmap Simulation
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Lightning Strike Sensors
+                  </li>
+                </ul>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentView('admin');
+                  }}
+                  className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-black font-bold font-mono text-[10px] uppercase tracking-wider rounded-lg hover:brightness-110 transition flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  Launch Feature <span>→</span>
+                </button>
+              </div>
+            </div>
           </div>
+
+          {/* Card 3: Citizen SOS Integration */}
+          <div 
+            onClick={() => setCurrentView('citizen')}
+            className="group relative premium-card p-6 rounded-2xl h-80 flex flex-col justify-between overflow-hidden transition-all duration-500 hover:-translate-y-2.5 hover:border-cyan-500/50 hover:bg-zinc-900/60 hover:shadow-[0_12px_40px_rgba(6,182,212,0.15)] focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 outline-none cursor-pointer"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentView('citizen'); } }}
+          >
+            <div className="flex justify-between items-start">
+              <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+                <Activity className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">03</span>
+            </div>
+
+            <div className="relative flex-1 flex flex-col justify-end mt-4">
+              {/* Default State */}
+              <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
+                <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">Citizen SOS Integration</h3>
+                <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Allows citizen-end access to voluntary relief hubs, medical beds indices, and a simple interface to file search-and-rescue tickets.</p>
+                <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
+                  <span>↓</span> Hover to Explore
+                </div>
+              </div>
+
+              {/* Hover State */}
+              <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
+                <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">Citizen SOS Integration</h3>
+                <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Voluntary Relief Bed Count
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Public Evacuation Maps
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> AI Vision Intake Vetting
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-emerald-500">✓</span> Mobile GPS Signal Lock
+                  </li>
+                </ul>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentView('citizen');
+                  }}
+                  className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-black font-bold font-mono text-[10px] uppercase tracking-wider rounded-lg hover:brightness-110 transition flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  Launch Feature <span>→</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
         </section>
 
         {/* FAQ Accordion */}
         <FAQ />
 
         {/* Footer */}
-        <footer className="border-t border-white/5 py-12 text-center text-zinc-500 text-[10px] font-mono">
+        <footer className="border-t border-white/5 py-12 text-center text-zinc-400 text-xs font-mono">
           <p>© 2026 Telangana State Disaster Management Authority (TSDMA). Operational Grade AI System.</p>
         </footer>
       </div>
@@ -482,6 +650,13 @@ function HomeDashboard() {
               <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/30 text-emerald-400 font-mono text-[9px] font-bold uppercase tracking-widest animate-pulse">
                 Live Public Channel
               </span>
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="p-2 rounded-lg bg-zinc-900 border border-white/10 hover:border-cyan-500/50 text-zinc-300 hover:text-white transition flex items-center justify-center cursor-pointer"
+                title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-400" />}
+              </button>
               <button
                 onClick={() => setCurrentView('landing')}
                 className="px-3 py-1.5 rounded-lg border border-white/5 hover:border-white/20 text-zinc-400 hover:text-white transition text-xs font-mono"
@@ -919,6 +1094,17 @@ function HomeDashboard() {
             ========================================== */}
         <div className="absolute top-5 right-5 z-[1000] flex items-center space-x-2.5">
           <div className="pointer-events-auto bg-zinc-950/90 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2 flex items-center gap-4 text-[10px] shadow-2xl font-mono border-cyan-500/10">
+            {/* Theme Toggle Button */}
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-1.5 rounded-lg bg-black/30 border border-white/10 hover:border-cyan-500/50 text-zinc-300 hover:text-white transition flex items-center justify-center cursor-pointer"
+              title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+            >
+              {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-cyan-400" />}
+            </button>
+
+            <div className="w-[1px] h-4 bg-white/10"></div>
+
             {/* Auto Demo Control */}
             <div className="flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-zinc-500" />

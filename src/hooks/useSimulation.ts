@@ -12,6 +12,7 @@ import {
   defaultWarehouses,
   generateInitialFleet
 } from '../utils/mockData';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   generateOptimizedPath,
   recommendVehiclesForIncident,
@@ -149,60 +150,185 @@ export function useSimulation() {
     ]);
   }, []);
 
-  // Dispatch a vehicle to an incident
-  const dispatchVehicle = useCallback((vehicleId: string, incidentId: string) => {
-    const incident = incidents.find((i) => i.id === incidentId);
-    if (!incident) return;
+  // Fetch initial data from Supabase if active
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    const client = supabase;
 
-    setVehicles((prevVehicles) =>
-      prevVehicles.map((v) => {
-        if (v.id === vehicleId) {
-          // Generate optimized route considering hazards and closures
-          const path = generateOptimizedPath(v.location, incident.location, hazards, roadClosures, v.type);
-          
-          const dist = getDistance(v.location, incident.location);
-          const speed = v.type === 'Helicopter' ? 180 : v.type === 'Ambulance' || v.type === 'Mobile Medical' ? 65 : v.type === 'Police' || v.type === 'Highway Patrol' ? 70 : 50;
-          const eta = Math.max(1, Math.round((dist / speed) * 60));
+    const loadSupabaseData = async () => {
+      try {
+        // 1. Fetch Incidents
+        const { data: dbIncidents, error: incError } = await client
+          .from('incidents')
+          .select('*')
+          .order('reportedAt', { ascending: false });
 
-          addNotification(
-            `DISPATCHED: ${v.name} (${v.type}) deployed to ${incident.type}. Distance: ${dist.toFixed(1)}km, ETA: ${eta} mins.`,
-            'info'
-          );
+        if (incError) throw incError;
 
-          // Update incident status to Dispatched and store vehicle ID
-          setIncidents((prevIncidents) =>
-            prevIncidents.map((inc) =>
-              inc.id === incidentId ? { ...inc, status: 'Dispatched', assignedVehicleId: vehicleId } : inc
-            )
-          );
-
-          return {
-            ...v,
-            status: 'EnRoute',
-            activeIncidentId: incidentId,
-            path,
-            pathIndex: 0,
-            speed,
-            etaMinutes: eta,
-            missionDescription: `Respond to ${incident.type} (Severity ${incident.severity}) at LAT ${incident.location.lat.toFixed(3)}, LNG ${incident.location.lng.toFixed(3)}.`
-          };
+        if (dbIncidents && dbIncidents.length > 0) {
+          setIncidents(dbIncidents as Incident[]);
+        } else {
+          await client.from('incidents').insert(defaultIncidents);
+          setIncidents(defaultIncidents);
         }
-        return v;
-      })
-    );
-  }, [incidents, hazards, roadClosures, addNotification]);
 
-  // Add custom incident (Citizen SOS or user simulated)
-  const addIncident = useCallback((incident: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status'] }) => {
-    const newInc: Incident = {
-      ...incident,
-      id: `inc-${Date.now().toString().slice(-3)}`,
-      status: incident.status || 'Pending',
-      reportedAt: new Date().toTimeString().split(' ')[0],
+        // 2. Fetch Shelters
+        const { data: dbShelters, error: shltError } = await client
+          .from('shelters')
+          .select('*');
+
+        if (shltError) throw shltError;
+
+        if (dbShelters && dbShelters.length > 0) {
+          setShelters(dbShelters as Shelter[]);
+        } else {
+          await client.from('shelters').insert(defaultShelters);
+          setShelters(defaultShelters);
+        }
+
+        // 3. Fetch Vehicles
+        const { data: dbVehicles, error: vehError } = await client
+          .from('vehicles')
+          .select('*');
+
+        if (vehError) throw vehError;
+
+        if (dbVehicles && dbVehicles.length > 0) {
+          const parsedVehicles = dbVehicles.map(v => ({
+            ...v,
+            path: typeof v.path === 'string' ? JSON.parse(v.path) : (v.path || []),
+            equipment: typeof v.equipment === 'string' ? JSON.parse(v.equipment) : (v.equipment || []),
+            crewNames: typeof v.crewNames === 'string' ? JSON.parse(v.crewNames) : (v.crewNames || []),
+            location: typeof v.location === 'string' ? JSON.parse(v.location) : v.location
+          }));
+          setVehicles(parsedVehicles as Vehicle[]);
+        } else {
+          const initialFleet = generateInitialFleet();
+          await client.from('vehicles').insert(initialFleet);
+          setVehicles(initialFleet);
+        }
+
+        addNotification('DATABASE ACTIVE: ResQAI connected to Supabase Cloud.', 'success');
+      } catch (err: any) {
+        console.error('Supabase load error:', err);
+        addNotification('DATABASE OFFLINE: Operating in local memory fallback.', 'warning');
+      }
     };
 
-    setIncidents((prev) => [newInc, ...prev]);
-    addNotification(`NEW EMERGENCY: ${newInc.type} reported by ${newInc.reporter}. Severity Score: ${newInc.severity}/100.`, 'emergency');
+    loadSupabaseData();
+  }, [addNotification]);
+
+  // Supabase Postgres Realtime Changes Listener
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    const client = supabase;
+
+    const channel = client
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'incidents' },
+        (payload) => {
+          const { eventType, new: newRow, old: oldRow } = payload;
+          
+          if (eventType === 'INSERT') {
+            setIncidents((prev) => {
+              if (prev.some(i => i.id === newRow.id)) return prev;
+              const newInc = newRow as Incident;
+              addNotification(`EMERGENCY INTAKE (CLOUD): ${newInc.type} registered via ${newInc.reporter}.`, 'emergency');
+              return [newInc, ...prev];
+            });
+          } else if (eventType === 'UPDATE') {
+            setIncidents((prev) =>
+              prev.map((i) => (i.id === newRow.id ? (newRow as Incident) : i))
+            );
+          } else if (eventType === 'DELETE') {
+            setIncidents((prev) => prev.filter((i) => i.id !== oldRow.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      client.removeChannel(channel);
+    };
+  }, [addNotification]);
+
+    // Dispatch a vehicle to an incident
+    const dispatchVehicle = useCallback((vehicleId: string, incidentId: string) => {
+      const incident = incidents.find((i) => i.id === incidentId);
+      if (!incident) return;
+
+      setVehicles((prevVehicles) =>
+        prevVehicles.map((v) => {
+          if (v.id === vehicleId) {
+            // Generate optimized route considering hazards and closures
+            const path = generateOptimizedPath(v.location, incident.location, hazards, roadClosures, v.type);
+            
+            const dist = getDistance(v.location, incident.location);
+            const speed = v.type === 'Helicopter' ? 180 : v.type === 'Ambulance' || v.type === 'Mobile Medical' ? 65 : v.type === 'Police' || v.type === 'Highway Patrol' ? 70 : 50;
+            const eta = Math.max(1, Math.round((dist / speed) * 60));
+
+            addNotification(
+              `DISPATCHED: ${v.name} (${v.type}) deployed to ${incident.type}. Distance: ${dist.toFixed(1)}km, ETA: ${eta} mins.`,
+              'info'
+            );
+
+            // Update incident status to Dispatched and store vehicle ID
+            setIncidents((prevIncidents) =>
+              prevIncidents.map((inc) =>
+                inc.id === incidentId ? { ...inc, status: 'Dispatched', assignedVehicleId: vehicleId } : inc
+              )
+            );
+
+            // Sync dispatch to Supabase in background
+            if (isSupabaseConfigured && supabase) {
+              supabase!.from('incidents').update({ status: 'Dispatched', assignedVehicleId: vehicleId }).eq('id', incidentId).then();
+              supabase!.from('vehicles').update({ 
+                status: 'EnRoute', 
+                activeIncidentId: incidentId,
+                path,
+                pathIndex: 0,
+                speed,
+                etaMinutes: eta,
+                missionDescription: `Respond to ${incident.type} (Severity ${incident.severity}) at LAT ${incident.location.lat.toFixed(3)}, LNG ${incident.location.lng.toFixed(3)}.`
+              }).eq('id', vehicleId).then();
+            }
+
+            return {
+              ...v,
+              status: 'EnRoute',
+              activeIncidentId: incidentId,
+              path,
+              pathIndex: 0,
+              speed,
+              etaMinutes: eta,
+              missionDescription: `Respond to ${incident.type} (Severity ${incident.severity}) at LAT ${incident.location.lat.toFixed(3)}, LNG ${incident.location.lng.toFixed(3)}.`
+            };
+          }
+          return v;
+        })
+      );
+    }, [incidents, hazards, roadClosures, addNotification]);
+
+    // Add custom incident (Citizen SOS or user simulated)
+    const addIncident = useCallback((incident: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status'] }) => {
+      const newInc: Incident = {
+        ...incident,
+        id: `inc-${Date.now().toString().slice(-3)}`,
+        status: incident.status || 'Pending',
+        reportedAt: new Date().toTimeString().split(' ')[0],
+      };
+
+      setIncidents((prev) => [newInc, ...prev]);
+      addNotification(`NEW EMERGENCY: ${newInc.type} reported by ${newInc.reporter}. Severity Score: ${newInc.severity}/100.`, 'emergency');
+
+      // Sync creation to Supabase
+      if (isSupabaseConfigured && supabase) {
+        supabase!.from('incidents').insert([newInc]).then(({ error }) => {
+          if (error) console.error('Supabase incident insert error:', error);
+        });
+      }
     
     // Dynamically expand hazard zones if it's a Fire or Flood
     if (newInc.type === 'Fire' || newInc.type === 'Flood') {
@@ -385,28 +511,42 @@ export function useSimulation() {
                 fuel: Math.max(0, v.fuel - 0.04), // lose fuel proportionally
               };
             } else {
-              // Reached target!
-              if (v.status === 'EnRoute') {
-                addNotification(`ARRIVED: ${v.name} has arrived at the emergency coordinate zone. Initiating rescue operations.`, 'success');
-                
-                // Set incident status to active
-                if (v.activeIncidentId) {
-                  setIncidents((prevInc) =>
-                    prevInc.map((inc) =>
-                      inc.id === v.activeIncidentId ? { ...inc, status: 'Active' } : inc
-                    )
-                  );
-                }
+                // Reached target!
+                if (v.status === 'EnRoute') {
+                  addNotification(`ARRIVED: ${v.name} has arrived at the emergency coordinate zone. Initiating rescue operations.`, 'success');
+                  
+                  // Set incident status to active
+                  if (v.activeIncidentId) {
+                    setIncidents((prevInc) =>
+                      prevInc.map((inc) =>
+                        inc.id === v.activeIncidentId ? { ...inc, status: 'Active' } : inc
+                      )
+                    );
+                  }
 
-                return {
-                  ...v,
-                  status: 'Active' as const,
-                  speed: 0,
-                  pathIndex: 0,
-                  path: [],
-                  location: v.path[v.path.length - 1]
-                };
-              } else {
+                  // Sync arrival to Supabase
+                  if (isSupabaseConfigured && supabase) {
+                    if (v.activeIncidentId) {
+                      supabase!.from('incidents').update({ status: 'Active' }).eq('id', v.activeIncidentId).then();
+                    }
+                    supabase!.from('vehicles').update({
+                      status: 'Active',
+                      speed: 0,
+                      pathIndex: 0,
+                      path: [],
+                      location: v.path[v.path.length - 1]
+                    }).eq('id', v.id).then();
+                  }
+
+                  return {
+                    ...v,
+                    status: 'Active' as const,
+                    speed: 0,
+                    pathIndex: 0,
+                    path: [],
+                    location: v.path[v.path.length - 1]
+                  };
+                } else {
                 // Idle patrol finished leg, clear path so it chooses a new target next tick
                 return {
                   ...v,
@@ -468,32 +608,55 @@ export function useSimulation() {
                 const rescueForce = activeAssignedVehicles.length;
                 const nextTrapped = Math.max(0, inc.trappedCount - rescueForce);
                 
-                if (nextTrapped === 0) {
-                  // Incident resolved!
-                  addNotification(`RESOLVED: Emergency at ${inc.type} scene cleared. Hazards secured, victims evacuated.`, 'success');
-                  
-                  // Return vehicles to base (idle status)
-                  setVehicles((prevV) =>
-                    prevV.map((v) =>
-                      v.activeIncidentId === inc.id
-                        ? { ...v, status: 'Idle', activeIncidentId: null, speed: 0 }
-                        : v
-                    )
-                  );
+                  if (nextTrapped === 0) {
+                    // Incident resolved!
+                    addNotification(`RESOLVED: Emergency at ${inc.type} scene cleared. Hazards secured, victims evacuated.`, 'success');
+                    
+                    // Return vehicles to base (idle status)
+                    setVehicles((prevV) =>
+                      prevV.map((v) =>
+                        v.activeIncidentId === inc.id
+                          ? { ...v, status: 'Idle', activeIncidentId: null, speed: 0 }
+                          : v
+                      )
+                    );
 
-                  return {
-                    ...inc,
-                    status: 'Resolved',
-                    trappedCount: 0,
-                    casualtyEstimate: Math.max(0, inc.casualtyEstimate - 2) // saved lives
-                  };
-                } else {
-                  return {
-                    ...inc,
-                    trappedCount: nextTrapped,
-                    casualtyEstimate: Math.max(0, inc.casualtyEstimate - 1)
-                  };
-                }
+                    // Sync resolution to Supabase
+                    if (isSupabaseConfigured && supabase) {
+                      supabase!.from('incidents').update({ 
+                        status: 'Resolved', 
+                        trappedCount: 0, 
+                        casualtyEstimate: Math.max(0, inc.casualtyEstimate - 2) 
+                      }).eq('id', inc.id).then();
+                      
+                      supabase!.from('vehicles').update({ 
+                        status: 'Idle', 
+                        activeIncidentId: null, 
+                        speed: 0 
+                      }).eq('activeIncidentId', inc.id).then();
+                    }
+
+                    return {
+                      ...inc,
+                      status: 'Resolved',
+                      trappedCount: 0,
+                      casualtyEstimate: Math.max(0, inc.casualtyEstimate - 2) // saved lives
+                    };
+                  } else {
+                    // Sync de-escalation progress to Supabase
+                    if (isSupabaseConfigured && supabase) {
+                      supabase!.from('incidents').update({ 
+                        trappedCount: nextTrapped, 
+                        casualtyEstimate: Math.max(0, inc.casualtyEstimate - 1) 
+                      }).eq('id', inc.id).then();
+                    }
+
+                    return {
+                      ...inc,
+                      trappedCount: nextTrapped,
+                      casualtyEstimate: Math.max(0, inc.casualtyEstimate - 1)
+                    };
+                  }
               }
             }
             return inc;
