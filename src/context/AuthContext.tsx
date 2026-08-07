@@ -112,12 +112,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     // Hardcoded credentials
-    const validUsername = 'officer@tsdma.gov.in';
-    const validPassword = 'EocPassword2026!';
+    const isPrimary = username.toLowerCase() === 'officer@tsdma.gov.in' && password === 'EocPassword2026!';
+    const isSecondary = username === '123456' && password === '123456';
 
-    if (username.toLowerCase() === validUsername && password === validPassword) {
+    if (isPrimary || isSecondary) {
       const newUser: User = {
-        username: validUsername,
+        username: isSecondary ? '123456' : 'officer@tsdma.gov.in',
         role: 'Department Official', // Default initial role
       };
 

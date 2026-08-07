@@ -314,6 +314,10 @@ export default function CommandMap({
       color = 'bg-orange-500 shadow-[0_0_15px_#f97316]';
     }
 
+    if (type === 'POLICE_SOS') {
+      color = 'bg-blue-600 shadow-[0_0_15px_#2563eb]';
+    }
+
     let symbol = '⚠️';
     if (type === 'Fire') symbol = '🔥';
     else if (type === 'Flood') symbol = '🌊';
@@ -346,6 +350,7 @@ export default function CommandMap({
     else if (type === 'Broken Traffic Signal') symbol = '🚦';
     else if (type === 'Large Pothole' || type === 'Open Manhole') symbol = '🕳️';
     else if (type === 'Building Safety Hazard') symbol = '🏚️';
+    else if (type === 'POLICE_SOS') symbol = '👮';
 
     return L.divIcon({
       html: `

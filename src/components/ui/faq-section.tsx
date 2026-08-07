@@ -45,10 +45,10 @@ const FAQ_ITEMS = [
 
 function FAQ() {
   return (
-    <div className="w-full py-16 lg:py-24 border-t border-white/5 bg-zinc-950/20 relative overflow-hidden">
+    <div className="w-full min-h-screen py-24 border-t border-white/5 bg-zinc-950/20 relative overflow-hidden flex items-center">
       {/* Background Wallpaper Image */}
       <div className="custom-landing-bg" />
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-6 w-full relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           <div className="flex gap-8 flex-col sticky top-24">
             <div className="flex gap-4 flex-col">

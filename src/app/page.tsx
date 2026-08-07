@@ -36,6 +36,7 @@ import { AuthProvider, useAuth, UserRole } from '../context/AuthContext';
 import Login from '../components/Login';
 import LogoutConfirm from '../components/LogoutConfirm';
 import { useSimulation } from '../hooks/useSimulation';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Incident, Vehicle, Warehouse, Shelter, Hospital } from '../utils/mockData';
 // Load IncidentAnalyzer dynamically to prevent SSR Leaflet reference errors
 const IncidentAnalyzer = dynamic(() => import('../components/IncidentAnalyzer'), {
@@ -111,6 +112,7 @@ function HomeDashboard() {
     incidents,
     setIncidents,
     vehicles,
+    setVehicles,
     shelters,
     hospitals,
     warehouses,
@@ -132,10 +134,16 @@ function HomeDashboard() {
   const [activeConsoleTab, setActiveConsoleTab] = useState<'dispatch' | 'analyzer' | 'sos' | 'risk' | 'chat' | 'analytics' | 'reports'>('dispatch');
   const [sosConsoleRightTab, setSosConsoleRightTab] = useState<'inspect' | 'manual'>('inspect');
   const [forecastHours, setForecastHours] = useState<number>(0);
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Disasters');
   
   const filteredIncidents = useMemo(() => {
     if (selectedCategory === 'All') return incidents;
+    if (selectedCategory === 'Disasters') {
+      return incidents.filter(inc => inc.type !== 'POLICE_SOS');
+    }
+    if (selectedCategory === 'Police SOS') {
+      return incidents.filter(inc => inc.type === 'POLICE_SOS');
+    }
     return incidents.filter(inc => inc.category === selectedCategory);
   }, [incidents, selectedCategory]);
 
@@ -145,7 +153,46 @@ function HomeDashboard() {
   const handleUpdateIncident = useCallback((updated: Incident) => {
     setIncidents(prev => prev.map(inc => inc.id === updated.id ? updated : inc));
     setSelectedIncident(updated);
-  }, [setIncidents]);
+
+    if (updated.type === 'POLICE_SOS') {
+      if (updated.status === 'Police Responding') {
+        if (updated.assignedVehicleId) {
+          dispatchVehicle(updated.assignedVehicleId, updated.id);
+        }
+      } else if (updated.status === 'Resolved') {
+        if (updated.assignedVehicleId) {
+          setVehicles((prev) =>
+            prev.map((v) =>
+              v.id === updated.assignedVehicleId
+                ? {
+                    ...v,
+                    status: 'Idle' as const,
+                    activeIncidentId: null,
+                    speed: 0,
+                    path: [],
+                    pathIndex: 0,
+                    etaMinutes: null,
+                    missionDescription: null
+                  }
+                : v
+            )
+          );
+
+          if (isSupabaseConfigured && supabase) {
+            supabase!.from('vehicles').update({
+              status: 'Idle',
+              activeIncidentId: null,
+              speed: 0,
+              path: [],
+              pathIndex: 0,
+              etaMinutes: null,
+              missionDescription: null
+            }).eq('id', updated.assignedVehicleId).then();
+          }
+        }
+      }
+    }
+  }, [setIncidents, dispatchVehicle, setVehicles, isSupabaseConfigured]);
   
   // Design details
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -393,6 +440,15 @@ function HomeDashboard() {
                 {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-400" />}
               </button>
               <button
+                onClick={() => {
+                  setCurrentView('citizen');
+                  addNotification('SOS CHANNEL INITIATED: Redirecting to emergency console.', 'info');
+                }}
+                className="px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-500/50 hover:bg-red-900/40 text-red-400 hover:text-red-300 transition text-xs font-mono font-bold flex items-center gap-1 cursor-pointer animate-pulse"
+              >
+                🚨 SOS ASSISTANCE
+              </button>
+              <button
                 onClick={() => setCurrentView('citizen')}
                 className="px-3 py-1.5 rounded-lg border border-cyan-500/30 text-cyan-400 hover:bg-cyan-950/30 transition text-xs font-mono font-bold flex items-center gap-1"
               >
@@ -409,7 +465,7 @@ function HomeDashboard() {
         </nav>
 
         {/* Hero Section */}
-        <header className="relative py-24 md:py-36 overflow-hidden border-b border-white/5">
+        <header className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden border-b border-white/5">
           {/* Background Video (Hero Only) */}
           <video
             autoPlay
@@ -436,18 +492,33 @@ function HomeDashboard() {
               ResQAI coordinates real-time emergency responder fleets, predicts landslide hazards, and manages medical supply levels for TSDMA across Telangana.
             </p>
 
-            <div className="pt-6 flex flex-col sm:flex-row justify-center items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
               <button
                 onClick={() => setCurrentView('citizen')}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl border border-cyan-500/50 hover:bg-cyan-950/30 text-cyan-400 font-bold text-xs font-mono tracking-widest uppercase transition"
+                className="relative group w-full sm:w-auto block text-xs font-bold font-mono uppercase tracking-widest outline-none cursor-pointer select-none"
               >
-                👤 Enter Citizen Safety Portal
+                {/* Black Offset Layer */}
+                <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover:-translate-x-2.5 md:group-hover:translate-y-2.5 z-0" />
+                
+                {/* White Foreground Box */}
+                <div className="relative z-10 w-full px-6 py-3 bg-white border border-black text-black flex items-center justify-between gap-4 transition-transform duration-300 md:group-hover:-translate-y-0.5 rounded-none">
+                  <span>👤 Enter Citizen Safety Portal</span>
+                  <span className="text-black transition-colors duration-300 group-hover:text-red-600 font-bold">→</span>
+                </div>
               </button>
+
               <button
                 onClick={() => setCurrentView('admin')}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-zinc-950 font-bold text-xs font-mono tracking-widest uppercase hover:brightness-110 transition shadow-[0_0_20px_rgba(6,182,212,0.2)]"
+                className="relative group w-full sm:w-auto block text-xs font-bold font-mono uppercase tracking-widest outline-none cursor-pointer select-none"
               >
-                🛡️ Enter Admin EOC Dashboard
+                {/* Black Offset Layer */}
+                <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover:-translate-x-2.5 md:group-hover:translate-y-2.5 z-0" />
+                
+                {/* White Foreground Box */}
+                <div className="relative z-10 w-full px-6 py-3 bg-white border border-black text-black flex items-center justify-between gap-4 transition-transform duration-300 md:group-hover:-translate-y-0.5 rounded-none">
+                  <span>🛡️ Enter Admin EOC Dashboard</span>
+                  <span className="text-black transition-colors duration-300 group-hover:text-red-600 font-bold">→</span>
+                </div>
               </button>
             </div>
           </div>
@@ -463,49 +534,65 @@ function HomeDashboard() {
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentView('admin'); } }}
           >
-            <div className="flex justify-between items-start">
-              <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
-                <Terminal className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">01</span>
-            </div>
+            {/* Card Background Image with Gradient Overlay */}
+            <div 
+              className="absolute inset-0 bg-cover bg-center z-0 transition-all duration-700 ease-out scale-100 group-hover:scale-103 opacity-30 group-hover:opacity-50 pointer-events-none"
+              style={{ backgroundImage: 'url(/feature-ai-dispatcher.png)' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-zinc-950/20 z-0 pointer-events-none" />
 
-            <div className="relative flex-1 flex flex-col justify-end mt-4">
-              {/* Default State */}
-              <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
-                <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">AI Command Dispatcher</h3>
-                <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Autopilot heuristic routing matching NDRF, SDRF, and fire response crews with disaster parameters using Musi river flow constraints.</p>
-                <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
-                  <span>↓</span> Hover to Explore
+            <div className="relative z-10 flex flex-col justify-between h-full w-full">
+              <div className="flex justify-between items-start">
+                <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+                  <Terminal className="w-5 h-5" />
                 </div>
+                <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">01</span>
               </div>
 
-              {/* Hover State */}
-              <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
-                <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">AI Command Dispatcher</h3>
-                <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Detect Disaster Zones
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Find Nearest Response Team
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Optimize Rescue Routes
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Dispatch Emergency Units
-                  </li>
-                </ul>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentView('admin');
-                  }}
-                  className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-black font-bold font-mono text-[10px] uppercase tracking-wider rounded-lg hover:brightness-110 transition flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  Launch Feature <span>→</span>
-                </button>
+              <div className="relative flex-1 flex flex-col justify-end mt-4">
+                {/* Default State */}
+                <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
+                  <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">AI Command Dispatcher</h3>
+                  <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Autopilot heuristic routing matching NDRF, SDRF, and fire response crews with disaster parameters using Musi river flow constraints.</p>
+                  <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
+                    <span>↓</span> Hover to Explore
+                  </div>
+                </div>
+
+                {/* Hover State */}
+                <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
+                  <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">AI Command Dispatcher</h3>
+                  <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Detect Disaster Zones
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Find Nearest Response Team
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Optimize Rescue Routes
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Dispatch Emergency Units
+                    </li>
+                  </ul>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentView('admin');
+                    }}
+                    className="relative group/btn w-full block text-left text-[10px] font-bold font-mono uppercase tracking-wider outline-none cursor-pointer select-none"
+                  >
+                    {/* Black Offset Layer */}
+                    <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/btn:-translate-x-2 md:group-hover/btn:translate-y-2 z-0" />
+                    
+                    {/* White Foreground Box */}
+                    <div className="relative z-10 w-full px-4 py-2.5 bg-white border border-black text-black flex items-center justify-between transition-transform duration-300 md:group-hover/btn:-translate-y-0.5 rounded-none">
+                      <span>Launch Feature</span>
+                      <span className="text-black transition-colors duration-300 group-hover/btn:text-red-600 font-bold">→</span>
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -517,49 +604,65 @@ function HomeDashboard() {
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentView('admin'); } }}
           >
-            <div className="flex justify-between items-start">
-              <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
-                <Compass className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">02</span>
-            </div>
+            {/* Card Background Image with Gradient Overlay */}
+            <div 
+              className="absolute inset-0 bg-cover bg-center z-0 transition-all duration-700 ease-out scale-100 group-hover:scale-103 opacity-30 group-hover:opacity-50 pointer-events-none"
+              style={{ backgroundImage: 'url(/feature-live-weather.png)' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-zinc-950/20 z-0 pointer-events-none" />
 
-            <div className="relative flex-1 flex flex-col justify-end mt-4">
-              {/* Default State */}
-              <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
-                <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">Live Weather Overlay</h3>
-                <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Track real-time rainfall radars, wind vector warnings, and lightning strikes. Toggle predictive Musi river flooding heatmaps.</p>
-                <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
-                  <span>↓</span> Hover to Explore
+            <div className="relative z-10 flex flex-col justify-between h-full w-full">
+              <div className="flex justify-between items-start">
+                <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+                  <Compass className="w-5 h-5" />
                 </div>
+                <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">02</span>
               </div>
 
-              {/* Hover State */}
-              <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
-                <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">Live Weather Overlay</h3>
-                <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Live Rainfall Radar
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Wind Vector Trackers
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Flood Heatmap Simulation
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Lightning Strike Sensors
-                  </li>
-                </ul>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentView('admin');
-                  }}
-                  className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-black font-bold font-mono text-[10px] uppercase tracking-wider rounded-lg hover:brightness-110 transition flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  Launch Feature <span>→</span>
-                </button>
+              <div className="relative flex-1 flex flex-col justify-end mt-4">
+                {/* Default State */}
+                <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
+                  <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">Live Weather Overlay</h3>
+                  <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Track real-time rainfall radars, wind vector warnings, and lightning strikes. Toggle predictive Musi river flooding heatmaps.</p>
+                  <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
+                    <span>↓</span> Hover to Explore
+                  </div>
+                </div>
+
+                {/* Hover State */}
+                <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
+                  <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">Live Weather Overlay</h3>
+                  <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Live Rainfall Radar
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Wind Vector Trackers
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Flood Heatmap Simulation
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Lightning Strike Sensors
+                    </li>
+                  </ul>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentView('admin');
+                    }}
+                    className="relative group/btn w-full block text-left text-[10px] font-bold font-mono uppercase tracking-wider outline-none cursor-pointer select-none"
+                  >
+                    {/* Black Offset Layer */}
+                    <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/btn:-translate-x-2 md:group-hover/btn:translate-y-2 z-0" />
+                    
+                    {/* White Foreground Box */}
+                    <div className="relative z-10 w-full px-4 py-2.5 bg-white border border-black text-black flex items-center justify-between transition-transform duration-300 md:group-hover/btn:-translate-y-0.5 rounded-none">
+                      <span>Launch Feature</span>
+                      <span className="text-black transition-colors duration-300 group-hover/btn:text-red-600 font-bold">→</span>
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -567,57 +670,72 @@ function HomeDashboard() {
           {/* Card 3: Citizen SOS Integration */}
           <div 
             onClick={() => setCurrentView('citizen')}
-            className="group relative premium-card p-6 rounded-2xl h-80 flex flex-col justify-between overflow-hidden transition-all duration-500 hover:-translate-y-2.5 hover:border-cyan-500/50 hover:bg-zinc-900/60 hover:shadow-[0_12px_40px_rgba(6,182,212,0.15)] focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 outline-none cursor-pointer"
+            className="group relative premium-card p-6 rounded-2xl h-80 flex flex-col justify-between overflow-hidden transition-all duration-500 hover:-translate-y-2.5 hover:border-cyan-500/50 hover:bg-zinc-900/60 hover:shadow-[0_12px_40px_rgba(6_182,212,0.15)] focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-cyan-500 outline-none cursor-pointer"
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentView('citizen'); } }}
           >
-            <div className="flex justify-between items-start">
-              <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
-                <Activity className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">03</span>
-            </div>
+            {/* Card Background Image with Gradient Overlay */}
+            <div 
+              className="absolute inset-0 bg-cover bg-center z-0 transition-all duration-700 ease-out scale-100 group-hover:scale-103 opacity-30 group-hover:opacity-50 pointer-events-none"
+              style={{ backgroundImage: 'url(/feature-citizen-sos.png)' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-zinc-950/20 z-0 pointer-events-none" />
 
-            <div className="relative flex-1 flex flex-col justify-end mt-4">
-              {/* Default State */}
-              <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
-                <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">Citizen SOS Integration</h3>
-                <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Allows citizen-end access to voluntary relief hubs, medical beds indices, and a simple interface to file search-and-rescue tickets.</p>
-                <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
-                  <span>↓</span> Hover to Explore
+            <div className="relative z-10 flex flex-col justify-between h-full w-full">
+              <div className="flex justify-between items-start">
+                <div className="w-12 h-12 rounded-xl bg-cyan-950/30 border border-cyan-800/30 flex items-center justify-center text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+                  <Activity className="w-5 h-5" />
                 </div>
+                <span className="text-[10px] font-mono text-zinc-600 group-hover:text-cyan-500/50 transition-colors font-bold uppercase">03</span>
               </div>
 
-              {/* Hover State */}
-              <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
-                <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">Citizen SOS Integration</h3>
-                <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Voluntary Relief Bed Count
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Public Evacuation Maps
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> AI Vision Intake Vetting
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">✓</span> Mobile GPS Signal Lock
-                  </li>
-                </ul>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentView('citizen');
-                  }}
-                  className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-black font-bold font-mono text-[10px] uppercase tracking-wider rounded-lg hover:brightness-110 transition flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  Launch Feature <span>→</span>
-                </button>
+              <div className="relative flex-1 flex flex-col justify-end mt-4">
+                {/* Default State */}
+                <div className="transition-all duration-300 group-hover:opacity-0 group-hover:-translate-y-4 group-hover:pointer-events-none">
+                  <h3 className="font-bold text-white text-sm uppercase font-mono mb-2">Citizen SOS Integration</h3>
+                  <p className="text-zinc-400 text-[11px] font-mono leading-relaxed line-clamp-2">Allows citizen-end access to voluntary relief hubs, medical beds indices, and a simple interface to file search-and-rescue tickets.</p>
+                  <div className="text-cyan-500/70 text-[9px] font-mono uppercase tracking-widest mt-4 animate-pulse flex items-center gap-1">
+                    <span>↓</span> Hover to Explore
+                  </div>
+                </div>
+
+                {/* Hover State */}
+                <div className="absolute inset-x-0 bottom-0 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 flex flex-col justify-end pointer-events-none group-hover:pointer-events-auto">
+                  <h3 className="font-bold text-cyan-400 text-sm uppercase font-mono mb-3">Citizen SOS Integration</h3>
+                  <ul className="space-y-1.5 font-mono text-[10px] text-zinc-300 mb-5">
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Voluntary Relief Bed Count
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Public Evacuation Maps
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> AI Vision Intake Vetting
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-emerald-500">✓</span> Mobile GPS Signal Lock
+                    </li>
+                  </ul>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentView('citizen');
+                    }}
+                    className="relative group/btn w-full block text-left text-[10px] font-bold font-mono uppercase tracking-wider outline-none cursor-pointer select-none"
+                  >
+                    {/* Black Offset Layer */}
+                    <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/btn:-translate-x-2 md:group-hover/btn:translate-y-2 z-0" />
+                    
+                    {/* White Foreground Box */}
+                    <div className="relative z-10 w-full px-4 py-2.5 bg-white border border-black text-black flex items-center justify-between transition-transform duration-300 md:group-hover/btn:-translate-y-0.5 rounded-none">
+                      <span>Launch Feature</span>
+                      <span className="text-black transition-colors duration-300 group-hover/btn:text-red-600 font-bold">→</span>
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-
         </section>
 
         {/* FAQ Accordion */}
@@ -712,16 +830,25 @@ function HomeDashboard() {
                 <Compass className="w-4 h-4" />
                 <span className="text-xs font-bold uppercase tracking-wider">Voluntary Relief Shelters</span>
               </div>
-              <div className="space-y-3 font-mono text-[11px] max-h-48 overflow-y-auto pr-1">
+              <div className="space-y-4 font-mono text-[11px] max-h-48 overflow-y-auto pr-1 pb-1">
                 {shelters.map((sh) => (
-                  <div key={sh.id} className="p-2.5 bg-zinc-900/50 border border-white/5 rounded-lg flex justify-between items-start">
-                    <div>
-                      <div className="font-bold text-white uppercase">{sh.name}</div>
-                      <div className="text-[10px] text-zinc-500 mt-0.5">Status: Operational</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-emerald-400 font-bold">{sh.capacity - sh.occupied} / {sh.capacity} Vacant</span>
-                      <p className="text-[9px] text-zinc-500 mt-0.5">Evacuees Staged</p>
+                  <div 
+                    key={sh.id} 
+                    className="relative group/shelter w-full block text-left outline-none select-none animate-fade-in"
+                  >
+                    {/* Black Offset Layer */}
+                    <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/shelter:-translate-x-1.5 md:group-hover/shelter:translate-y-1.5 z-0" />
+                    
+                    {/* White Foreground Box */}
+                    <div className="relative z-10 w-full p-2.5 bg-white border border-black text-black flex justify-between items-start transition-transform duration-300 md:group-hover/shelter:-translate-y-0.5 rounded-none">
+                      <div>
+                        <div className="font-bold uppercase text-[10px] leading-tight transition-colors duration-300">{sh.name}</div>
+                        <div className="text-[9px] text-zinc-500 mt-0.5">Status: Operational</div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-emerald-700 font-extrabold text-[10px] transition-colors duration-300 group-hover/shelter:text-red-600">{sh.capacity - sh.occupied} / {sh.capacity} Vacant</span>
+                        <p className="text-[8px] text-zinc-500 mt-0.5">Evacuees Staged</p>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -731,22 +858,73 @@ function HomeDashboard() {
             {/* Helpline Directory */}
             <div className="premium-card p-5 rounded-2xl flex-shrink-0 font-mono text-xs">
               <span className="text-[10px] text-zinc-500 uppercase tracking-widest block mb-3 border-b border-white/5 pb-1">Emergency Directory</span>
-              <div className="grid grid-cols-2 gap-2 text-[10px]">
-                <div className="p-2 bg-white/5 border border-white/5 rounded">
-                  <div className="text-zinc-500 uppercase">National Helpline</div>
-                  <div className="font-bold text-white mt-0.5">1070</div>
+              <div className="grid grid-cols-2 gap-3 text-[10px] pb-1">
+                <div 
+                  onClick={() => window.open('tel:1070')}
+                  className="relative group/helpline block text-left outline-none cursor-pointer select-none"
+                >
+                  {/* Black Offset Layer */}
+                  <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/helpline:-translate-x-1.5 md:group-hover/helpline:translate-y-1.5 z-0" />
+                  
+                  {/* White Foreground Box */}
+                  <div className="relative z-10 w-full p-2.5 bg-white border border-black text-black flex flex-col transition-transform duration-300 md:group-hover/helpline:-translate-y-0.5 rounded-none">
+                    <div className="text-zinc-500 uppercase text-[8px] font-bold">National Helpline</div>
+                    <div className="font-extrabold text-black mt-0.5 text-xs flex justify-between items-center">
+                      <span>1070</span>
+                      <span className="text-black transition-colors duration-300 group-hover/helpline:text-red-600 text-[10px]">📞</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-2 bg-white/5 border border-white/5 rounded">
-                  <div className="text-zinc-500 uppercase">Ambulance Services</div>
-                  <div className="font-bold text-white mt-0.5">108</div>
+
+                <div 
+                  onClick={() => window.open('tel:108')}
+                  className="relative group/ambulance block text-left outline-none cursor-pointer select-none"
+                >
+                  {/* Black Offset Layer */}
+                  <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/ambulance:-translate-x-1.5 md:group-hover/ambulance:translate-y-1.5 z-0" />
+                  
+                  {/* White Foreground Box */}
+                  <div className="relative z-10 w-full p-2.5 bg-white border border-black text-black flex flex-col transition-transform duration-300 md:group-hover/ambulance:-translate-y-0.5 rounded-none">
+                    <div className="text-zinc-500 uppercase text-[8px] font-bold">Ambulance Services</div>
+                    <div className="font-extrabold text-black mt-0.5 text-xs flex justify-between items-center">
+                      <span>108</span>
+                      <span className="text-black transition-colors duration-300 group-hover/ambulance:text-red-600 text-[10px]">📞</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-2 bg-white/5 border border-white/5 rounded">
-                  <div className="text-zinc-500 uppercase">Fire Control</div>
-                  <div className="font-bold text-white mt-0.5">101</div>
+
+                <div 
+                  onClick={() => window.open('tel:101')}
+                  className="relative group/fire block text-left outline-none cursor-pointer select-none"
+                >
+                  {/* Black Offset Layer */}
+                  <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/fire:-translate-x-1.5 md:group-hover/fire:translate-y-1.5 z-0" />
+                  
+                  {/* White Foreground Box */}
+                  <div className="relative z-10 w-full p-2.5 bg-white border border-black text-black flex flex-col transition-transform duration-300 md:group-hover/fire:-translate-y-0.5 rounded-none">
+                    <div className="text-zinc-500 uppercase text-[8px] font-bold">Fire Control</div>
+                    <div className="font-extrabold text-black mt-0.5 text-xs flex justify-between items-center">
+                      <span>101</span>
+                      <span className="text-black transition-colors duration-300 group-hover/fire:text-red-600 text-[10px]">📞</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-2 bg-white/5 border border-white/5 rounded">
-                  <div className="text-zinc-500 uppercase">Police Desk</div>
-                  <div className="font-bold text-white mt-0.5">100</div>
+
+                <div 
+                  onClick={() => window.open('tel:100')}
+                  className="relative group/police block text-left outline-none cursor-pointer select-none"
+                >
+                  {/* Black Offset Layer */}
+                  <div className="absolute inset-0 bg-black border border-black transition-all duration-300 translate-x-0 translate-y-0 md:group-hover/police:-translate-x-1.5 md:group-hover/police:translate-y-1.5 z-0" />
+                  
+                  {/* White Foreground Box */}
+                  <div className="relative z-10 w-full p-2.5 bg-white border border-black text-black flex flex-col transition-transform duration-300 md:group-hover/police:-translate-y-0.5 rounded-none">
+                    <div className="text-zinc-500 uppercase text-[8px] font-bold">Police Desk</div>
+                    <div className="font-extrabold text-black mt-0.5 text-xs flex justify-between items-center">
+                      <span>100</span>
+                      <span className="text-black transition-colors duration-300 group-hover/police:text-red-600 text-[10px]">📞</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1252,8 +1430,12 @@ function HomeDashboard() {
             />
           )}
 
-          {activeConsoleTab === 'sos' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full font-mono text-xs text-white">
+          {activeConsoleTab === 'sos' && (() => {
+            const assignedVehicleForSelected = selectedIncident?.assignedVehicleId
+              ? vehicles.find(v => v.id === selectedIncident.assignedVehicleId)
+              : null;
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full font-mono text-xs text-white">
               {/* Left Column: SOS Distress Feed (2/3 width) */}
               <div className="lg:col-span-2 glass-panel p-4 rounded-xl flex flex-col min-h-[400px]">
                 <div className="flex justify-between items-center border-b border-white/10 pb-2 mb-3">
@@ -1421,81 +1603,177 @@ function HomeDashboard() {
                         <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block mb-2">SOS Ticket Inspector</span>
                         
                         {selectedIncident && (selectedIncident.reporter === 'Citizen SOS' || selectedIncident.reporter === 'Citizen Portal' || selectedIncident.needsSOSValidation) ? (
-                          <div className="space-y-3 bg-black/40 border border-white/5 p-3 rounded-lg text-xs">
-                            <div>
-                              <div className="text-red-400 font-bold uppercase">{selectedIncident.type}</div>
-                              <div className="text-[9px] text-slate-500 mt-0.5">Ticket ID: {selectedIncident.id}</div>
-                            </div>
-                            
-                            <p className="text-[10px] text-slate-300 italic bg-white/5 p-2 rounded">
-                              &quot;{selectedIncident.description}&quot;
-                            </p>
-
-                            {/* Verification Controls */}
-                            {selectedIncident.needsSOSValidation ? (
-                              <div className="space-y-2 border-t border-white/15 pt-2">
-                                <div className="text-[9px] text-yellow-400 font-bold animate-pulse">⚠️ REQUIRES CONFIRMATION</div>
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => {
-                                      const verified = {
-                                        ...selectedIncident,
-                                        needsSOSValidation: false,
-                                        status: 'Reported' as const
-                                      };
-                                      addNotification(`SOS VERIFIED: Distress approved at location.`, 'success');
-                                      handleUpdateIncident(verified);
-                                    }}
-                                    className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-black text-[9px] font-bold rounded uppercase tracking-wider transition"
-                                  >
-                                    Verify SOS
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      const dismissed = {
-                                        ...selectedIncident,
-                                        needsSOSValidation: false,
-                                        status: 'Resolved' as const
-                                      };
-                                      addNotification(`SOS DISMISSED: Report resolved and closed.`, 'warning');
-                                      handleUpdateIncident(dismissed);
-                                      setSelectedIncident(null);
-                                    }}
-                                    className="flex-1 py-1.5 bg-red-950 hover:bg-red-900 border border-red-500/30 text-red-300 text-[9px] font-bold rounded uppercase tracking-wider transition"
-                                  >
-                                    Reject
-                                  </button>
-                                </div>
+                          selectedIncident.type === 'POLICE_SOS' ? (
+                            /* Simulated Police Agent Mobile Terminal Pager */
+                            <div className="space-y-3 bg-zinc-950/80 border border-blue-500/40 p-4 rounded-xl text-xs font-mono relative overflow-hidden shadow-[0_0_15px_rgba(37,99,235,0.15)] animate-fade-in">
+                              <div className="flex justify-between items-center border-b border-blue-500/30 pb-2">
+                                <span className="text-blue-400 font-bold tracking-wider flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                                  🚨 POLICE MOBILE PAGER
+                                </span>
+                                <span className="text-[8px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-1.5 py-0.5 rounded uppercase font-bold">
+                                  Cruiser Online
+                                </span>
                               </div>
-                            ) : (
-                              <div className="space-y-2 border-t border-white/15 pt-2">
-                                <div className="text-emerald-400 font-bold text-[9px] flex items-center gap-1">
-                                  <span>✅ VERIFIED DISTRESS TICKET</span>
-                                </div>
-                                <p className="text-[9px] text-slate-400">
-                                  Status: <strong className="text-white uppercase">{selectedIncident.status}</strong>
-                                </p>
-                                <div className="flex gap-1.5">
-                                  {['Active', 'Resolved'].map((st) => (
+
+                              <div className="bg-zinc-900/60 border border-zinc-800 p-3 rounded-lg space-y-2 text-[10px] leading-relaxed">
+                                <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">Emergency Signal Lock</div>
+                                <div className="text-white font-bold text-xs uppercase">Police SOS Request</div>
+                                <div><strong>Ticket ID:</strong> {selectedIncident.id}</div>
+                                <div><strong>Coordinates:</strong> LAT {selectedIncident.location.lat.toFixed(5)} • LNG {selectedIncident.location.lng.toFixed(5)}</div>
+                                <div><strong>Time Logged:</strong> {selectedIncident.reportedAt}</div>
+                                <div><strong>Incident Status:</strong> <span className="text-blue-400 font-bold uppercase">{selectedIncident.status}</span></div>
+
+                                {assignedVehicleForSelected ? (
+                                  <div className="border-t border-white/5 pt-2 mt-2 space-y-1 text-slate-300">
+                                    <div className="text-[9px] text-blue-400 font-bold uppercase">Assigned Responder</div>
+                                    <div><strong>Cruiser:</strong> {assignedVehicleForSelected.name}</div>
+                                    <div><strong>Crew:</strong> {assignedVehicleForSelected.crewNames.join(', ')}</div>
+                                    <div><strong>Cruiser Position:</strong> LAT {assignedVehicleForSelected.location.lat.toFixed(4)}, LNG {assignedVehicleForSelected.location.lng.toFixed(4)}</div>
+                                    <div>
+                                      <strong>Distance & ETA:</strong>{' '}
+                                      {assignedVehicleForSelected.etaMinutes 
+                                        ? `${assignedVehicleForSelected.etaMinutes} mins (${getDistance(assignedVehicleForSelected.location, selectedIncident.location).toFixed(1)} km)`
+                                        : 'At Scene'}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-amber-400 font-bold text-[9px] uppercase border-t border-white/5 pt-2 mt-2 animate-pulse">
+                                    ⚠️ Search status: Scanning for nearest patrols...
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="space-y-2 pt-1.5">
+                                {selectedIncident.status === 'Police Notified' && assignedVehicleForSelected && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = {
+                                        ...selectedIncident,
+                                        status: 'Police Responding' as const
+                                      };
+                                      addNotification(`POLICE ACCEPTED: ${assignedVehicleForSelected.name} accepted SOS ${selectedIncident.id} and is deploying.`, 'emergency');
+                                      handleUpdateIncident(updated);
+                                    }}
+                                    className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-zinc-950 font-bold uppercase rounded-lg text-[10px] tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 shadow-[0_0_12px_rgba(37,99,235,0.3)]"
+                                  >
+                                    🚨 ACCEPT SOS & DISPATCH
+                                  </button>
+                                )}
+
+                                {selectedIncident.status === 'Dispatched' && (
+                                  <div className="text-center py-2 text-blue-400 font-bold text-[9px] uppercase animate-pulse border border-blue-500/20 rounded bg-blue-950/20">
+                                    🚓 Cruiser En Route to Scene...
+                                  </div>
+                                )}
+
+                                {selectedIncident.status === 'Active' && (
+                                  <div className="space-y-2">
+                                    <div className="text-center py-1.5 text-emerald-400 font-bold text-[9px] uppercase border border-emerald-500/20 rounded bg-emerald-950/20 animate-pulse">
+                                      ✓ Patrol Arrived at Scene
+                                    </div>
                                     <button
-                                      key={st}
+                                      type="button"
                                       onClick={() => {
                                         const updated = {
                                           ...selectedIncident,
-                                          status: st as Incident['status']
+                                          status: 'Resolved' as const
                                         };
-                                        addNotification(`SOS STATUS UPDATE: Ticket ${selectedIncident.id} marked as ${st}.`, 'info');
+                                        addNotification(`RESOLVED: SOS ${selectedIncident.id} scene secured and resolved.`, 'success');
                                         handleUpdateIncident(updated);
                                       }}
-                                      className="px-2 py-1 rounded bg-zinc-900 border border-white/10 hover:border-cyan-500/50 text-[9px] text-slate-300 transition"
+                                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold uppercase rounded-lg text-[10px] tracking-wider transition-all cursor-pointer"
                                     >
-                                      Set {st}
+                                      ✓ MARK EMERGENCY RESOLVED
                                     </button>
-                                  ))}
-                                </div>
+                                  </div>
+                                )}
+
+                                {selectedIncident.status === 'Resolved' && (
+                                  <div className="text-center py-2 text-emerald-400 font-bold text-[10px] uppercase border border-emerald-500/20 rounded bg-emerald-950/20">
+                                    ✓ Emergency Resolved.
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-3 bg-black/40 border border-white/5 p-3 rounded-lg text-xs">
+                              <div>
+                                <div className="text-red-400 font-bold uppercase">{selectedIncident.type}</div>
+                                <div className="text-[9px] text-slate-500 mt-0.5">Ticket ID: {selectedIncident.id}</div>
+                              </div>
+                              
+                              <p className="text-[10px] text-slate-300 italic bg-white/5 p-2 rounded">
+                                &quot;{selectedIncident.description}&quot;
+                              </p>
+
+                              {/* Verification Controls */}
+                              {selectedIncident.needsSOSValidation ? (
+                                <div className="space-y-2 border-t border-white/15 pt-2">
+                                  <div className="text-[9px] text-yellow-400 font-bold animate-pulse">⚠️ REQUIRES CONFIRMATION</div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        const verified = {
+                                          ...selectedIncident,
+                                          needsSOSValidation: false,
+                                          status: 'Reported' as const
+                                        };
+                                        addNotification(`SOS VERIFIED: Distress approved at location.`, 'success');
+                                        handleUpdateIncident(verified);
+                                      }}
+                                      className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-black text-[9px] font-bold rounded uppercase tracking-wider transition"
+                                    >
+                                      Verify SOS
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const dismissed = {
+                                          ...selectedIncident,
+                                          needsSOSValidation: false,
+                                          status: 'Resolved' as const
+                                        };
+                                        addNotification(`SOS DISMISSED: Report resolved and closed.`, 'warning');
+                                        handleUpdateIncident(dismissed);
+                                        setSelectedIncident(null);
+                                      }}
+                                      className="flex-1 py-1.5 bg-red-950 hover:bg-red-900 border border-red-500/30 text-red-300 text-[9px] font-bold rounded uppercase tracking-wider transition"
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-2 border-t border-white/15 pt-2">
+                                  <div className="text-emerald-400 font-bold text-[9px] flex items-center gap-1">
+                                    <span>✅ VERIFIED DISTRESS TICKET</span>
+                                  </div>
+                                  <p className="text-[9px] text-slate-400">
+                                    Status: <strong className="text-white uppercase">{selectedIncident.status}</strong>
+                                  </p>
+                                  <div className="flex gap-1.5">
+                                    {['Active', 'Resolved'].map((st) => (
+                                      <button
+                                        key={st}
+                                        onClick={() => {
+                                          const updated = {
+                                            ...selectedIncident,
+                                            status: st as Incident['status']
+                                          };
+                                          addNotification(`SOS STATUS UPDATE: Ticket ${selectedIncident.id} marked as ${st}.`, 'info');
+                                          handleUpdateIncident(updated);
+                                        }}
+                                        className="px-2 py-1 rounded bg-zinc-900 border border-white/10 hover:border-cyan-500/50 text-[9px] text-slate-300 transition"
+                                      >
+                                        Set {st}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
                         ) : (
                           <div className="text-center py-12 text-slate-600 text-[10px] flex flex-col justify-center items-center h-full">
                             <Activity className="w-8 h-8 text-zinc-800 mb-2 animate-pulse" />
@@ -1531,7 +1809,8 @@ function HomeDashboard() {
                 </div>
               </div>
             </div>
-          )}
+          );
+        })()}
 
           {activeConsoleTab === 'risk' && (
             <RiskPrediction

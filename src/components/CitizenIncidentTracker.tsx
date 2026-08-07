@@ -9,6 +9,20 @@ import {
 import { Incident, Vehicle } from '../utils/mockData';
 import CitizenSOS from './CitizenSOS';
 
+const getDistance = (loc1: { lat: number; lng: number }, loc2: { lat: number; lng: number }) => {
+  const R = 6371; // km
+  const dLat = ((loc2.lat - loc1.lat) * Math.PI) / 180;
+  const dLng = ((loc2.lng - loc1.lng) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((loc1.lat * Math.PI) / 180) *
+      Math.cos((loc2.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 interface CitizenIncidentTrackerProps {
   incidents: Incident[];
   vehicles: Vehicle[];
@@ -180,8 +194,205 @@ export default function CitizenIncidentTracker({
     }
   };
 
+  const [showSosConfirm, setShowSosConfirm] = useState(false);
+  const [isSendingSos, setIsSendingSos] = useState(false);
+
+  // Find active POLICE_SOS reported by this citizen
+  const activeSosIncident = useMemo(() => {
+    return incidents.find(inc => inc.type === 'POLICE_SOS' && inc.status !== 'Closed') || null;
+  }, [incidents]);
+
+  const assignedSosVehicle = useMemo(() => {
+    if (!activeSosIncident?.assignedVehicleId) return null;
+    return vehicles.find(v => v.id === activeSosIncident.assignedVehicleId) || null;
+  }, [activeSosIncident, vehicles]);
+
+  const triggerPoliceSos = () => {
+    if (isSendingSos) return;
+    setIsSendingSos(true);
+
+    let lat = 17.3850;
+    let lng = 78.4867;
+
+    const sendRequest = (coords: { lat: number; lng: number }) => {
+      onAddIncident({
+        type: 'POLICE_SOS',
+        category: 'Public Safety',
+        severity: 60,
+        location: coords,
+        description: 'POLICE SOS: Immediate police assistance requested by citizen. Live GPS coordinates locked.',
+        casualtyEstimate: 0,
+        trappedCount: 0,
+        requiredResources: ['Police Patrol'],
+        reporter: 'Citizen Portal',
+        needsSOSValidation: false,
+        aiPriority: 'MEDIUM',
+        etaResolution: 1
+      });
+      setIsSendingSos(false);
+      setShowSosConfirm(false);
+      addNotification('POLICE SOS SENT: Emergency police dispatch initiated.', 'emergency');
+    };
+
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          sendRequest({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => {
+          sendRequest({
+            lat: 17.3850 + (Math.random() - 0.5) * 0.01,
+            lng: 78.4867 + (Math.random() - 0.5) * 0.01
+          });
+        },
+        { timeout: 3000 }
+      );
+    } else {
+      sendRequest({ lat, lng });
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col justify-between font-mono text-xs text-slate-300">
+      {/* POLICE SOS PANEL */}
+      <div className="mb-4 p-3 bg-zinc-950/40 border border-white/10 rounded-xl flex flex-col justify-between relative overflow-hidden flex-shrink-0">
+        {activeSosIncident ? (
+          // Active SOS Status HUD
+          <div className="space-y-3">
+            <div className="flex justify-between items-center border-b border-red-500/20 pb-1.5">
+              <div className="flex items-center gap-2 text-red-500 font-bold">
+                <span className="w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
+                <span>🚨 POLICE SOS ACTIVE</span>
+              </div>
+              <span className="text-[9px] text-zinc-500">ID: {activeSosIncident.id}</span>
+            </div>
+
+            <p className="text-[10px] text-slate-300 leading-relaxed bg-red-950/10 border border-red-500/20 p-2 rounded-lg">
+              {activeSosIncident.status === 'Resolved' ? (
+                <span className="text-emerald-400 font-bold">✓ Emergency Resolved. Police team cleared.</span>
+              ) : (
+                <span>🚨 SOS sent successfully. Police assistance has been requested.</span>
+              )}
+            </p>
+
+            {/* Assigned Police Patrol Telemetry details */}
+            {activeSosIncident.status !== 'Resolved' && (
+              assignedSosVehicle ? (
+                <div className="p-2.5 bg-zinc-900/60 border border-white/5 rounded-lg space-y-1 text-[9px] text-slate-300">
+                  <div className="text-red-400 font-bold uppercase flex items-center gap-1.5 text-[10px] border-b border-white/5 pb-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                    <span>👮 ASSIGNED POLICE RESPONDER</span>
+                  </div>
+                  <div><strong>Patrol Unit:</strong> {assignedSosVehicle.name}</div>
+                  <div><strong>Responding Officers:</strong> {assignedSosVehicle.crewNames.join(', ')}</div>
+                  <div>
+                    <strong>Response Status:</strong>{' '}
+                    <span className="text-emerald-400 font-bold">
+                      {activeSosIncident.status === 'Pending' || activeSosIncident.status === 'SOS Sent' ? 'DISPATCHING...' :
+                       activeSosIncident.status === 'Police Notified' ? 'WAITING ACCEPTANCE' :
+                       activeSosIncident.status === 'Dispatched' ? 'EN ROUTE' :
+                       activeSosIncident.status === 'Active' ? 'AT SCENE / HANDLING' : 'RESOLVED'}
+                    </span>
+                  </div>
+                  {assignedSosVehicle.etaMinutes && (
+                    <div><strong>Estimated Arrival:</strong> {assignedSosVehicle.etaMinutes} mins ({getDistance(assignedSosVehicle.location, activeSosIncident.location).toFixed(1)} km)</div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-2.5 bg-red-950/10 border border-red-500/20 rounded-lg text-center text-amber-500 font-bold text-[9px] uppercase animate-pulse">
+                  ⚠️ Dispatch status: Scanning for nearest patrols...
+                </div>
+              )
+            )}
+
+            {/* SOS Status Steps Tracker */}
+            <div className="grid grid-cols-4 gap-1 text-[8px] font-bold text-center uppercase tracking-tighter pt-1">
+              {[
+                { label: 'SOS Sent', match: ['Pending', 'SOS Sent', 'Police Notified', 'Police Responding', 'Resolved'] },
+                { label: 'Notified', match: ['Police Notified', 'Police Responding', 'Resolved'] },
+                { label: 'Responding', match: ['Police Responding', 'Resolved'] },
+                { label: 'Resolved', match: ['Resolved'] }
+              ].map((step, idx) => {
+                const isCompleted = step.match.includes(activeSosIncident.status);
+                const isActive = activeSosIncident.status === step.label || 
+                  (step.label === 'SOS Sent' && activeSosIncident.status === 'Pending') ||
+                  (step.label === 'Notified' && activeSosIncident.status === 'Police Notified') ||
+                  (step.label === 'Responding' && activeSosIncident.status === 'Police Responding');
+                return (
+                  <div key={idx} className="flex flex-col items-center">
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-[8px] font-bold mb-1 transition-all ${
+                      isCompleted 
+                        ? 'bg-red-950 border-red-500 text-red-400' 
+                        : 'bg-zinc-900 border-white/5 text-slate-600'
+                    } ${isActive ? 'animate-pulse ring-1 ring-red-500/30' : ''}`}>
+                      {isCompleted && activeSosIncident.status === 'Resolved' && idx === 3 ? '✓' : idx + 1}
+                    </div>
+                    <span className={isCompleted ? 'text-red-400' : 'text-slate-600'}>{step.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {activeSosIncident.status === 'Resolved' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onUpdateIncident) {
+                    onUpdateIncident({
+                      ...activeSosIncident,
+                      status: 'Closed'
+                    });
+                  }
+                }}
+                className="w-full py-1.5 bg-zinc-900 border border-white/10 hover:border-zinc-500 text-zinc-300 hover:text-white rounded-lg transition text-[9px] uppercase tracking-wider font-bold"
+              >
+                Dismiss Resolved Alert
+              </button>
+            )}
+          </div>
+        ) : showSosConfirm ? (
+          // Confirmation dialog view
+          <div className="space-y-3 py-1 animate-fade-in">
+            <span className="text-red-500 font-bold uppercase tracking-wider block text-[10px]">⚠️ Confirm Police SOS Alert</span>
+            <p className="text-[10px] text-slate-300 leading-normal">
+              Are you sure you want to send an SOS request to the police?
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={isSendingSos}
+                onClick={triggerPoliceSos}
+                className="py-2 bg-red-600 hover:bg-red-500 disabled:bg-slate-800 text-slate-950 font-bold uppercase rounded-lg text-[10px] tracking-wider transition-all cursor-pointer flex items-center justify-center"
+              >
+                {isSendingSos ? 'TRANSMITTING...' : 'Send SOS'}
+              </button>
+              <button
+                type="button"
+                disabled={isSendingSos}
+                onClick={() => setShowSosConfirm(false)}
+                className="py-2 bg-white/5 border border-white/10 hover:border-white/20 text-slate-300 uppercase rounded-lg text-[10px] tracking-wider transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          // Default State: SOS Button
+          <div className="space-y-2 py-1 flex flex-col items-center text-center">
+            <button
+              type="button"
+              onClick={() => setShowSosConfirm(true)}
+              className="w-full py-3 bg-red-950/40 border border-red-500/50 hover:bg-red-900/40 hover:border-red-500 text-red-500 hover:text-red-400 font-bold uppercase rounded-xl text-xs tracking-wider transition-all duration-300 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>🚨</span> SOS – REQUEST POLICE ASSISTANCE <span>🚨</span>
+            </button>
+            <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">
+              For immediate police assistance only
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Tab Selectors */}
       <div className="flex border-b border-white/5 mb-4 flex-shrink-0">
         <button

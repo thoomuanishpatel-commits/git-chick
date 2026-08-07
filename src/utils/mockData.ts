@@ -48,7 +48,8 @@ export type IncidentType =
   | 'Broken Traffic Signal'
   | 'Large Pothole'
   | 'Open Manhole'
-  | 'Building Safety Hazard';
+  | 'Building Safety Hazard'
+  | 'POLICE_SOS';
 
 export interface Incident {
   id: string;
@@ -64,7 +65,10 @@ export interface Incident {
     | 'Team Assigned'
     | 'En Route'
     | 'Rescued'
-    | 'Closed';
+    | 'Closed'
+    | 'SOS Sent'
+    | 'Police Notified'
+    | 'Police Responding';
   location: Location;
   description: string;
   casualtyEstimate: number;

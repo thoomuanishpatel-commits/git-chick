@@ -66,10 +66,18 @@ export default function Login({ onBackToPortal }: { onBackToPortal?: () => void 
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col md:flex-row text-white selection:bg-cyan-500 selection:text-black font-sans relative overflow-hidden">
+    <div 
+      className="min-h-screen flex flex-col md:flex-row text-white selection:bg-cyan-500 selection:text-black font-sans relative overflow-hidden"
+      style={{
+        backgroundImage: 'url(/admin_background.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }}
+    >
       
       {/* LEFT SIDE: Full-Height Animated Disaster Hero Section */}
-      <div className="w-full md:w-1/2 relative bg-slate-950 border-r border-white/5 flex flex-col justify-between p-8 md:p-12 overflow-hidden h-[40vh] md:h-auto">
+      <div className="w-full md:w-1/2 relative bg-slate-950/30 border-r border-white/5 flex flex-col justify-between p-8 md:p-12 overflow-hidden h-[40vh] md:h-auto">
         
         {/* Animated Cyber Grid Overlay */}
         <div className="absolute inset-0 cyber-grid-moving opacity-20 pointer-events-none"></div>
@@ -102,17 +110,6 @@ export default function Login({ onBackToPortal }: { onBackToPortal?: () => void 
           )}
         </div>
 
-        {/* Centerpiece: Animated Tactical Radar */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 w-64 h-64 border border-cyan-500/15 rounded-full flex items-center justify-center pointer-events-none select-none">
-          <div className="w-48 h-48 border border-cyan-500/10 rounded-full flex items-center justify-center">
-            <div className="w-32 h-32 border border-cyan-500/5 rounded-full flex items-center justify-center">
-              <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_8px_#06b6d4]"></div>
-            </div>
-          </div>
-          <div className="absolute inset-0 border-l border-cyan-500/20 animate-spin-slow rounded-full"></div>
-          <div className="absolute w-2.5 h-2.5 bg-red-500/60 rounded-full animate-ping top-10 left-12"></div>
-          <div className="absolute w-2 h-2 bg-emerald-500/50 rounded-full animate-ping bottom-12 right-14"></div>
-        </div>
 
         {/* Parallax Floating Tactical Modules Indicator */}
         <div className="z-10 my-auto text-left max-w-sm select-none hidden md:block">
@@ -155,7 +152,7 @@ export default function Login({ onBackToPortal }: { onBackToPortal?: () => void 
       </div>
 
       {/* RIGHT SIDE: Centered premium Glassmorphism Login Card */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 relative bg-zinc-950">
+      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 relative bg-transparent">
         
         {/* Ambient background glows */}
         <div className="absolute top-1/3 right-1/4 w-80 h-80 rounded-full bg-cyan-600/5 blur-[100px] pointer-events-none"></div>

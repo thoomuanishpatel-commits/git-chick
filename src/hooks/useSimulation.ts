@@ -316,9 +316,61 @@ export function useSimulation() {
       const newInc: Incident = {
         ...incident,
         id: `inc-${Date.now().toString().slice(-3)}`,
-        status: incident.status || 'Pending',
+        status: incident.type === 'POLICE_SOS' ? 'SOS Sent' : (incident.status || 'Pending'),
         reportedAt: new Date().toTimeString().split(' ')[0],
       };
+
+      if (newInc.type === 'POLICE_SOS') {
+        const policeVehicles = vehicles.filter(v => 
+          (v.type === 'Police' || v.type === 'Traffic Police' || v.type === 'Highway Patrol') &&
+          v.status === 'Idle' &&
+          !v.activeIncidentId &&
+          v.fuel > 10
+        );
+
+        let closestVehicle: Vehicle | null = null;
+        let minDistance = Infinity;
+
+        policeVehicles.forEach((v) => {
+          const d = getDistance(v.location, newInc.location);
+          if (d < minDistance) {
+            minDistance = d;
+            closestVehicle = v;
+          }
+        });
+
+        if (closestVehicle) {
+          newInc.assignedVehicleId = (closestVehicle as Vehicle).id;
+          newInc.status = 'Police Notified';
+
+          setVehicles((prev) =>
+            prev.map((v) =>
+              v.id === (closestVehicle as Vehicle).id
+                ? {
+                    ...v,
+                    status: 'Idle',
+                    activeIncidentId: newInc.id,
+                    path: [],
+                    pathIndex: 0,
+                    speed: 0,
+                    missionDescription: `Assigned to emergency Police SOS ${newInc.id}. Waiting for agent acceptance.`
+                  }
+                : v
+            )
+          );
+
+          if (isSupabaseConfigured && supabase) {
+            supabase!.from('vehicles').update({
+              status: 'Idle',
+              activeIncidentId: newInc.id,
+              path: [],
+              pathIndex: 0,
+              speed: 0,
+              missionDescription: `Assigned to emergency Police SOS ${newInc.id}. Waiting for agent acceptance.`
+            }).eq('id', (closestVehicle as Vehicle).id).then();
+          }
+        }
+      }
 
       setIncidents((prev) => [newInc, ...prev]);
       addNotification(`NEW EMERGENCY: ${newInc.type} reported by ${newInc.reporter}. Severity Score: ${newInc.severity}/100.`, 'emergency');
@@ -344,7 +396,7 @@ export function useSimulation() {
     }
 
     // AI Autopilot Auto-Dispatch Logic
-    if (autopilotEnabled) {
+    if (autopilotEnabled && newInc.type !== 'POLICE_SOS') {
       setTimeout(() => {
         setVehicles((prevVehicles) => {
           const eligible = prevVehicles.filter(v => v.status === 'Idle' && v.fuel > 10);
@@ -392,7 +444,7 @@ export function useSimulation() {
     }
 
     return newInc;
-  }, [autopilotEnabled, dispatchVehicle, addNotification, hazards, roadClosures, incidents]);
+  }, [autopilotEnabled, dispatchVehicle, addNotification, hazards, roadClosures, incidents, vehicles, setVehicles]);
 
   // Clear notifications
   const clearNotifications = useCallback(() => {
@@ -673,6 +725,7 @@ export function useSimulation() {
     incidents,
     setIncidents,
     vehicles,
+    setVehicles,
     shelters,
     hospitals,
     warehouses,

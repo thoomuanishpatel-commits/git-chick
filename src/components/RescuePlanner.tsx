@@ -158,13 +158,17 @@ export default function RescuePlanner({
             {/* List of active incidents */}
             <div className="glass-panel p-4 rounded-xl flex flex-col min-h-0">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">Active Emergency Tickets</span>
+                <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+                  {selectedCategory === 'Police SOS' ? '👮 POLICE SOS QUEUE' : 'Active Emergency Tickets'}
+                </span>
                 <select
                   value={selectedCategory}
                   onChange={(e) => onChangeCategory?.(e.target.value)}
                   className="bg-zinc-900 border border-white/10 text-slate-300 font-mono text-[9px] px-2 py-1 rounded cursor-pointer hover:border-cyan-500/50 transition outline-none"
                 >
                   {[
+                    'Disasters',
+                    'Police SOS',
                     'All',
                     'Disaster Response',
                     'Public Safety',
@@ -292,6 +296,99 @@ export default function RescuePlanner({
                               className="flex-1 py-1 bg-red-950 hover:bg-red-900 border border-red-500/30 text-red-300 text-[9px] font-bold rounded uppercase tracking-wider transition"
                             >
                               Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 0. Custom Police SOS Telemetry & Status Tracker */}
+                      {selectedIncident.type === 'POLICE_SOS' && (
+                        <div className="bg-blue-950/20 border border-blue-800/20 p-2.5 rounded space-y-2 mt-2 font-sans">
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span className="text-blue-400 font-bold">👮 POLICE EMERGENCY SOS DESK</span>
+                            <span className="px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-300 font-bold text-[8px]">
+                              POLICE ONLY
+                            </span>
+                          </div>
+                          
+                          <div className="text-[10px] text-slate-300 space-y-1">
+                            <div><strong>Incident:</strong> Police Assistance SOS</div>
+                            <div><strong>Reporter:</strong> {selectedIncident.reporter}</div>
+                            <div><strong>User Name:</strong> Citizen (Verified GPS lock)</div>
+                            <div><strong>Phone:</strong> +91 98765 43210 (Verified)</div>
+                            <div><strong>Time Reported:</strong> {selectedIncident.reportedAt}</div>
+                            <div><strong>Current Status:</strong> <span className="text-blue-400 font-bold uppercase">{selectedIncident.status}</span></div>
+                          </div>
+
+                          {/* SOS Status Progress Tracker */}
+                          <div className="py-2 border-t border-white/5 border-b border-white/5 mt-2">
+                            <div className="text-[8px] text-zinc-500 uppercase tracking-widest font-bold mb-1.5">Police response lifecycle</div>
+                            <div className="flex justify-between items-center relative py-1 px-3">
+                              {[
+                                { label: 'SOS Sent', match: ['Pending', 'SOS Sent', 'Police Notified', 'Police Responding', 'Resolved'] },
+                                { label: 'Notified', match: ['Police Notified', 'Police Responding', 'Resolved'] },
+                                { label: 'Responding', match: ['Police Responding', 'Resolved'] },
+                                { label: 'Resolved', match: ['Resolved'] }
+                              ].map((step, idx) => {
+                                const isCompleted = step.match.includes(selectedIncident.status);
+                                const isActive = selectedIncident.status === step.label || 
+                                  (step.label === 'SOS Sent' && selectedIncident.status === 'Pending') ||
+                                  (step.label === 'Notified' && selectedIncident.status === 'Police Notified') ||
+                                  (step.label === 'Responding' && selectedIncident.status === 'Police Responding');
+                                return (
+                                  <div key={idx} className="flex flex-col items-center flex-1 z-10">
+                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center text-[8px] font-bold ${
+                                      isCompleted 
+                                        ? 'bg-blue-950 border-blue-500 text-blue-400' 
+                                        : 'bg-zinc-955 border-white/5 text-slate-600'
+                                    } ${isActive ? 'animate-pulse ring-1 ring-blue-500/30' : ''}`}>
+                                      {idx + 1}
+                                    </div>
+                                    <span className={`text-[7px] mt-1 font-bold uppercase tracking-tighter ${isCompleted ? 'text-blue-400' : 'text-slate-600'}`}>
+                                      {step.label}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                              {/* Connector line */}
+                              <div className="absolute top-3 left-6 right-6 h-[1.5px] bg-white/5 -z-0"></div>
+                            </div>
+                          </div>
+
+                          {/* Police Status Update Actions */}
+                          <div className="pt-2 flex flex-wrap gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = { ...selectedIncident, status: 'Police Notified' as const };
+                                addNotification(`POLICE DISPATCH: Police notified of SOS ${selectedIncident.id}.`, 'info');
+                                onUpdateIncident?.(updated);
+                              }}
+                              className="px-2 py-1 rounded bg-blue-950 border border-blue-800/40 hover:border-blue-400 text-[8px] font-bold text-blue-300 hover:text-white transition cursor-pointer"
+                            >
+                              Notify Police
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = { ...selectedIncident, status: 'Police Responding' as const };
+                                addNotification(`POLICE DISPATCH: Officers responding to SOS ${selectedIncident.id}.`, 'emergency');
+                                onUpdateIncident?.(updated);
+                              }}
+                              className="px-2 py-1 rounded bg-blue-950 border border-blue-800/40 hover:border-blue-400 text-[8px] font-bold text-blue-300 hover:text-white transition cursor-pointer"
+                            >
+                              Set Responding
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = { ...selectedIncident, status: 'Resolved' as const };
+                                addNotification(`POLICE DISPATCH: SOS ${selectedIncident.id} resolved. Scene secured.`, 'success');
+                                onUpdateIncident?.(updated);
+                              }}
+                              className="px-2 py-1 rounded bg-emerald-950 border border-emerald-800/40 hover:border-emerald-400 text-[8px] font-bold text-emerald-300 hover:text-white transition cursor-pointer"
+                            >
+                              Set Resolved
                             </button>
                           </div>
                         </div>
