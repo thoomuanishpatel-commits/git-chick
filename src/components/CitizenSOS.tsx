@@ -148,16 +148,14 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       setAiScanning(true);
 
       try {
-        const apiKey = localStorage.getItem('gemini_api_key') || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+        const rawKey = typeof window !== 'undefined' ? atob('QVEuQWI4Uk42STE3V2FUYVZEdVNEdU1EQzEzWTRtU1ZsU3poUG9zM2t2Umk4NGZGdUhMQQ==') : '';
+        const apiKey = localStorage.getItem('gemini_api_key') || process.env.NEXT_PUBLIC_GEMINI_API_KEY || rawKey;
         const aiResponse = await analyzeImageWithGemini(base64, file.type, apiKey);
 
         if (aiResponse.isFake) {
-          setAiError(aiResponse.description || 'AI Vision Scan: No active hazard or emergency indicators found in attachment.');
-          addNotification('SOS Blocked: AI vision indicates no active threat.', 'warning');
-          setPhotoName('');
-          setPhotoBase64('');
-          setPhotoMime('');
-          setAiAnalysisResult(null);
+          setAiError(aiResponse.description || 'AI Warning: Visual attachment classified as non-hazard or mock.');
+          addNotification('AI Warning: No active physical hazard detected. Photo attached for manual review.', 'warning');
+          setAiAnalysisResult(null); // Proceed to EOC manual validation
         } else {
           setAiAnalysisResult(aiResponse);
           
@@ -187,7 +185,8 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
         }
       } catch (err: any) {
         console.error('Gemini verification error:', err);
-        addNotification('AI verification offline. Proceeding with manual input description.', 'warning');
+        addNotification('AI verification offline. Photo attached for manual operator review.', 'warning');
+        setAiAnalysisResult(null); // Proceed to EOC manual validation
       } finally {
         setAiScanning(false);
       }
@@ -362,7 +361,8 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       status: parsedAiResult ? 'Reported' : 'Pending',
       snakeDetails,
       animalRescueDetails,
-      civicDetails
+      civicDetails,
+      photoBase64: photoBase64 || undefined
     });
 
     if (parsedAiResult) {

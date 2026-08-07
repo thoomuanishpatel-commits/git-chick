@@ -7,7 +7,8 @@ export type UserRole =
   | 'Administrator'
   | 'Emergency Coordinator'
   | 'Incident Operator'
-  | 'Field Officer';
+  | 'Field Officer'
+  | 'Project Examiner';
 
 interface User {
   username: string;
@@ -20,6 +21,7 @@ interface AuthContextType {
   loading: boolean;
   inactivityWarning: boolean;
   login: (username: string, password: string, rememberMe: boolean) => Promise<{ success: boolean; error?: string }>;
+  loginAsExaminer: () => Promise<{ success: boolean }>;
   logout: () => void;
   updateRole: (role: UserRole) => void;
   dismissInactivityWarning: () => void;
@@ -149,6 +151,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: false, error: 'Invalid Department Credentials' };
   };
 
+  const loginAsExaminer = async (): Promise<{ success: boolean }> => {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const newUser: User = {
+      username: 'examiner@tsdma.gov.in',
+      role: 'Project Examiner',
+    };
+    const mockToken = 'tsdma_examiner_token_' + Math.random().toString(36).substring(2);
+    try {
+      sessionStorage.setItem('tsdma_auth_token', mockToken);
+      sessionStorage.setItem('tsdma_user_data', JSON.stringify(newUser));
+      setUser(newUser);
+      setIsAuthenticated(true);
+      setInactivityWarning(false);
+      return { success: true };
+    } catch (e) {
+      return { success: false };
+    }
+  };
+
   const logout = () => {
     // Clear storage keys
     localStorage.removeItem('tsdma_auth_token');
@@ -181,6 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         inactivityWarning,
         login,
+        loginAsExaminer,
         logout,
         updateRole,
         dismissInactivityWarning,

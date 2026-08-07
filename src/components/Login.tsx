@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Lock, User, AlertCircle, Eye, EyeOff, Loader2, Compass, Radio, Server } from 'lucide-react';
+import { Shield, Lock, User, AlertCircle, Eye, EyeOff, Loader2, Compass, Radio, Server, GraduationCap } from 'lucide-react';
 
 export default function Login({ onBackToPortal }: { onBackToPortal?: () => void }) {
-  const { login, inactivityWarning, dismissInactivityWarning } = useAuth();
+  const { login, loginAsExaminer, inactivityWarning, dismissInactivityWarning } = useAuth();
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -57,6 +57,24 @@ export default function Login({ onBackToPortal }: { onBackToPortal?: () => void 
         setAuthSuccess(true);
       } else {
         setErrors({ general: res.error || 'Authentication denied. Check credentials.' });
+        setIsSubmitting(false);
+      }
+    } catch (err) {
+      setErrors({ general: 'EOC secure gate offline. Please retry.' });
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleExaminerLogin = async () => {
+    if (isSubmitting || authSuccess) return;
+    setIsSubmitting(true);
+    setErrors({});
+    try {
+      const res = await loginAsExaminer();
+      if (res.success) {
+        setAuthSuccess(true);
+      } else {
+        setErrors({ general: 'Failed to authenticate examiner session.' });
         setIsSubmitting(false);
       }
     } catch (err) {
@@ -334,6 +352,31 @@ export default function Login({ onBackToPortal }: { onBackToPortal?: () => void 
               )}
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="relative my-4 flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/10"></div>
+            </div>
+            <span className="relative bg-zinc-950/60 px-3 text-[8px] font-mono text-zinc-500 uppercase tracking-widest">
+              OR EVALUATOR DEMO
+            </span>
+          </div>
+
+          {/* Examiner Button */}
+          <button
+            type="button"
+            onClick={handleExaminerLogin}
+            disabled={isSubmitting || authSuccess}
+            className="w-full py-3 bg-zinc-900/60 hover:bg-zinc-800 border border-white/10 hover:border-cyan-500/50 text-zinc-200 hover:text-white font-bold uppercase rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-[10px] tracking-wider cursor-pointer disabled:opacity-50 disabled:pointer-events-none active:scale-[0.99] shadow-[0_2px_10px_rgba(0,0,0,0.3)]"
+          >
+            <GraduationCap className="w-4 h-4 text-cyan-400" />
+            <span>Login for Instructors / Examiners</span>
+          </button>
+          
+          <p className="mt-1.5 text-center text-[8px] font-mono text-zinc-500 uppercase tracking-wider">
+            For instructors, project reviewers & evaluators
+          </p>
 
           {/* Warning Footer */}
           <div className="mt-6 border-t border-white/5 pt-4 text-center font-mono text-[8px] text-zinc-500 leading-normal uppercase select-none">

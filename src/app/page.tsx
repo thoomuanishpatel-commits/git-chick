@@ -37,7 +37,7 @@ import Login from '../components/Login';
 import LogoutConfirm from '../components/LogoutConfirm';
 import { useSimulation } from '../hooks/useSimulation';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Incident, Vehicle, Warehouse, Shelter, Hospital } from '../utils/mockData';
+import { Incident, Vehicle, Warehouse, Shelter, Hospital, Location } from '../utils/mockData';
 // Load IncidentAnalyzer dynamically to prevent SSR Leaflet reference errors
 const IncidentAnalyzer = dynamic(() => import('../components/IncidentAnalyzer'), {
   ssr: false,
@@ -131,6 +131,38 @@ function HomeDashboard() {
     addNotification
   } = useSimulation();
 
+  const handleAddIncident = useCallback((incident: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status'] }) => {
+    if (auth.user?.role === 'Project Examiner') {
+      addNotification('🔍 Read-Only Console: Raising manual emergency incidents is disabled in evaluator demo mode.', 'warning');
+      return null;
+    }
+    return addIncident(incident);
+  }, [addIncident, auth.user, addNotification]);
+
+  const handleDispatchVehicle = useCallback((vehicleId: string, incidentId: string) => {
+    if (auth.user?.role === 'Project Examiner') {
+      addNotification('🔍 Read-Only Console: Vehicle dispatch is disabled in evaluator demo mode.', 'warning');
+      return;
+    }
+    dispatchVehicle(vehicleId, incidentId);
+  }, [dispatchVehicle, auth.user, addNotification]);
+
+  const handleToggleRoadClosure = useCallback((location: { lat: number; lng: number }) => {
+    if (auth.user?.role === 'Project Examiner') {
+      addNotification('🔍 Read-Only Console: Road block modifications are disabled in evaluator demo mode.', 'warning');
+      return;
+    }
+    toggleRoadClosure(location);
+  }, [toggleRoadClosure, auth.user, addNotification]);
+
+  const handleToggleAutopilot = useCallback(() => {
+    if (auth.user?.role === 'Project Examiner') {
+      addNotification('🔍 Read-Only Console: AI Autopilot control is disabled in evaluator demo mode.', 'warning');
+      return;
+    }
+    setAutopilotEnabled(!autopilotEnabled);
+  }, [autopilotEnabled, setAutopilotEnabled, auth.user, addNotification]);
+
   const [activeConsoleTab, setActiveConsoleTab] = useState<'dispatch' | 'analyzer' | 'sos' | 'risk' | 'chat' | 'analytics' | 'reports'>('dispatch');
   const [sosConsoleRightTab, setSosConsoleRightTab] = useState<'inspect' | 'manual'>('inspect');
   const [forecastHours, setForecastHours] = useState<number>(0);
@@ -151,6 +183,11 @@ function HomeDashboard() {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   
   const handleUpdateIncident = useCallback((updated: Incident) => {
+    if (auth.user?.role === 'Project Examiner') {
+      addNotification('🔍 Read-Only Console: Status updates and incident modifications are disabled in evaluator demo mode.', 'warning');
+      return;
+    }
+
     setIncidents(prev => prev.map(inc => inc.id === updated.id ? updated : inc));
     setSelectedIncident(updated);
 
@@ -192,7 +229,7 @@ function HomeDashboard() {
         }
       }
     }
-  }, [setIncidents, dispatchVehicle, setVehicles, isSupabaseConfigured]);
+  }, [setIncidents, dispatchVehicle, setVehicles, isSupabaseConfigured, auth.user, addNotification]);
   
   // Design details
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -366,7 +403,7 @@ function HomeDashboard() {
   const handleCommandRun = (cmd: string) => {
     const trimmed = cmd.trim().toLowerCase();
     if (trimmed === '/autopilot') {
-      setAutopilotEnabled(!autopilotEnabled);
+      handleToggleAutopilot();
       addNotification('[AI COMMAND] Autopilot state toggled via command line.', 'info');
     } else if (trimmed === '/clear') {
       clearNotifications();
@@ -374,7 +411,7 @@ function HomeDashboard() {
     } else if (trimmed.startsWith('/sos ')) {
       const type = cmd.substring(5).trim();
       const mappedType = (type.charAt(0).toUpperCase() + type.slice(1)) as Incident['type'];
-      addIncident({
+      handleAddIncident({
         type: mappedType,
         category: 'Disaster Response',
         severity: 85,
@@ -811,7 +848,7 @@ function HomeDashboard() {
                 selectedIncident={selectedIncident}
                 onSelectIncident={setSelectedIncident}
                 onAddIncident={(inc) => {
-                  const newInc = addIncident({
+                  const newInc = handleAddIncident({
                     ...inc,
                     reporter: 'Citizen Portal'
                   });
@@ -1121,13 +1158,15 @@ function HomeDashboard() {
                     <div className="text-[7px] text-zinc-500 truncate uppercase mt-0.5">{auth.user?.role}</div>
                   </div>
                 </div>
-                <button
-                  onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-                  className="text-zinc-500 hover:text-white transition p-1 outline-none flex-shrink-0"
-                  title="Switch EOC Role"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                </button>
+                {auth.user?.role !== 'Project Examiner' && (
+                  <button
+                    onClick={() => setRoleMenuOpen(!roleMenuOpen)}
+                    className="text-zinc-500 hover:text-white transition p-1 outline-none flex-shrink-0"
+                    title="Switch EOC Role"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Role Dropdown Menu */}
@@ -1202,7 +1241,7 @@ function HomeDashboard() {
           warehouses={warehouses}
           hazards={hazards}
           roadClosures={roadClosures}
-          onToggleRoadClosure={toggleRoadClosure}
+          onToggleRoadClosure={handleToggleRoadClosure}
           selectedIncident={selectedIncident}
           onSelectIncident={(inc) => {
             setSelectedIncident(inc);
@@ -1244,6 +1283,24 @@ function HomeDashboard() {
               </div>
             </div>
           </div>
+
+          {/* Project Examiner Banner Badge */}
+          {auth.user?.role === 'Project Examiner' && (
+            <div className="pointer-events-auto bg-zinc-950/95 backdrop-blur-md border border-amber-500/40 rounded-xl p-2.5 shadow-lg flex items-center gap-2.5 font-mono max-w-sm border-dashed">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              <div className="leading-tight text-left">
+                <div className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">
+                  🔍 EVALUATION DEMO MODE
+                </div>
+                <div className="text-[7.5px] text-zinc-400 mt-0.5 leading-normal uppercase">
+                  Read-only examiner console. Destructive commands and settings modification restricted.
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="pointer-events-auto bg-zinc-950/75 backdrop-blur-md border border-white/10 rounded-xl p-2.5 shadow-lg w-28 md:w-36 flex flex-col justify-between">
             <span className="text-zinc-500 text-[8px] uppercase tracking-wider block">Active Emergencies</span>
@@ -1306,7 +1363,7 @@ function HomeDashboard() {
               <Cpu className="w-3.5 h-3.5 text-zinc-500" />
               <span className="text-zinc-400 uppercase text-[8px] tracking-wider">Autopilot:</span>
               <button
-                onClick={() => setAutopilotEnabled(!autopilotEnabled)}
+                onClick={handleToggleAutopilot}
                 className={`px-2 py-0.5 text-[8px] font-bold rounded-lg transition-all duration-200 border ${
                   autopilotEnabled 
                     ? 'bg-purple-500/15 text-purple-300 border-purple-500/40 shadow-[0_0_8px_rgba(168,85,247,0.2)]' 
@@ -1400,7 +1457,7 @@ function HomeDashboard() {
               hospitals={hospitals}
               hazards={hazards}
               roadClosures={roadClosures}
-              onDispatchVehicle={dispatchVehicle}
+              onDispatchVehicle={handleDispatchVehicle}
               selectedIncident={selectedIncident}
               onSelectIncident={(inc) => {
                 setSelectedIncident(inc);
@@ -1423,7 +1480,7 @@ function HomeDashboard() {
           {activeConsoleTab === 'analyzer' && (
             <IncidentAnalyzer
               onAddIncident={(inc) => {
-                const newInc = addIncident(inc);
+                const newInc = handleAddIncident(inc);
                 if (newInc) setSelectedIncident(newInc);
               }}
               addNotification={addNotification}
@@ -1644,6 +1701,19 @@ function HomeDashboard() {
                                 )}
                               </div>
 
+                              {selectedIncident.photoBase64 && (
+                                <div className="mt-2 space-y-1">
+                                  <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold block">Attached Distress Photo</span>
+                                  <div className="border border-white/10 rounded-lg overflow-hidden bg-zinc-900/60 max-h-36 flex justify-center items-center">
+                                    <img 
+                                      src={selectedIncident.photoBase64} 
+                                      alt="Distress Scene" 
+                                      className="max-w-full max-h-36 object-contain"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
                               <div className="space-y-2 pt-1.5">
                                 {selectedIncident.status === 'Police Notified' && assignedVehicleForSelected && (
                                   <button
@@ -1707,6 +1777,19 @@ function HomeDashboard() {
                               <p className="text-[10px] text-slate-300 italic bg-white/5 p-2 rounded">
                                 &quot;{selectedIncident.description}&quot;
                               </p>
+
+                              {selectedIncident.photoBase64 && (
+                                <div className="space-y-1">
+                                  <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold block">Attached Distress Photo</span>
+                                  <div className="border border-white/10 rounded-lg overflow-hidden bg-zinc-900/60 max-h-36 flex justify-center items-center">
+                                    <img 
+                                      src={selectedIncident.photoBase64} 
+                                      alt="Distress Scene" 
+                                      className="max-w-full max-h-36 object-contain"
+                                    />
+                                  </div>
+                                </div>
+                              )}
 
                               {/* Verification Controls */}
                               {selectedIncident.needsSOSValidation ? (
@@ -1789,7 +1872,7 @@ function HomeDashboard() {
                       <div className="flex-1 overflow-y-auto">
                         <CitizenSOS
                           onAddIncident={(inc) => {
-                            const newInc = addIncident({
+                            const newInc = handleAddIncident({
                               ...inc,
                               reporter: 'Citizen SOS',
                               needsSOSValidation: true

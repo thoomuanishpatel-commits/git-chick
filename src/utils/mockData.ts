@@ -80,6 +80,7 @@ export interface Incident {
   etaResolution: number; // hours
   assignedVehicleId?: string | null;
   needsSOSValidation?: boolean;
+  photoBase64?: string;
   
   // Custom details for dynamic safety & veterinary issues:
   snakeDetails?: {
@@ -631,6 +632,62 @@ export const defaultHospitals: Hospital[] = [
     totalBeds: 800,
     occupiedBeds: 620,
     icuAvailable: 18
+  },
+  {
+    id: 'hosp-4',
+    name: 'GGH Government General Hospital (Khammam)',
+    location: { lat: 17.2473, lng: 80.1514 }, // Khammam
+    totalBeds: 500,
+    occupiedBeds: 340,
+    icuAvailable: 15
+  },
+  {
+    id: 'hosp-5',
+    name: 'Mamata General Hospital (Khammam)',
+    location: { lat: 17.2612, lng: 80.1250 }, // Khammam
+    totalBeds: 600,
+    occupiedBeds: 490,
+    icuAvailable: 8
+  },
+  {
+    id: 'hosp-6',
+    name: 'MGM Hospital Warangal (GGH)',
+    location: { lat: 17.9944, lng: 79.5898 }, // Warangal
+    totalBeds: 1000,
+    occupiedBeds: 810,
+    icuAvailable: 22
+  },
+  {
+    id: 'hosp-7',
+    name: 'Jaya Hospital (Hanamkonda, Warangal)',
+    location: { lat: 18.0125, lng: 79.5650 }, // Hanamkonda
+    totalBeds: 400,
+    occupiedBeds: 290,
+    icuAvailable: 10
+  },
+  {
+    id: 'hosp-8',
+    name: 'Government General Hospital (Nizamabad)',
+    location: { lat: 18.6725, lng: 78.0941 }, // Nizamabad
+    totalBeds: 600,
+    occupiedBeds: 430,
+    icuAvailable: 16
+  },
+  {
+    id: 'hosp-9',
+    name: 'Government Civil Hospital (Karimnagar)',
+    location: { lat: 18.4386, lng: 79.1288 }, // Karimnagar
+    totalBeds: 500,
+    occupiedBeds: 380,
+    icuAvailable: 12
+  },
+  {
+    id: 'hosp-10',
+    name: 'Prathima Institute of Medical Sciences (Karimnagar)',
+    location: { lat: 18.4720, lng: 79.1650 }, // Karimnagar
+    totalBeds: 700,
+    occupiedBeds: 520,
+    icuAvailable: 20
   }
 ];
 
@@ -696,10 +753,26 @@ const spawnFacilities = [
   { name: 'Secunderabad Fire Station', loc: { lat: 17.4390, lng: 78.4980 }, types: ['Fire Truck', 'Road Clearance'] },
   { name: 'Jeedimetla Fire Station', loc: { lat: 17.5020, lng: 78.4610 }, types: ['Fire Truck', 'Utility Repair'] },
   { name: 'Cyberabad Police HQ', loc: { lat: 17.4430, lng: 78.3480 }, types: ['Police', 'Traffic Police', 'Highway Patrol'] },
+  
+  // Warangal Anchor points
+  { name: 'MGM Hospital Warangal Base', loc: { lat: 17.9944, lng: 79.5898 }, types: ['Ambulance', 'Mobile Medical', 'Fire Truck', 'NDRF'] },
   { name: 'Warangal Police HQ', loc: { lat: 17.9600, lng: 79.5900 }, types: ['Police', 'Traffic Police', 'Ambulance'] },
+  { name: 'Warangal Fire Station', loc: { lat: 17.9750, lng: 79.5950 }, types: ['Fire Truck', 'Road Clearance', 'Utility Repair'] },
+
+  // Khammam Anchor points
+  { name: 'GGH Khammam Hospital Base', loc: { lat: 17.2473, lng: 80.1514 }, types: ['Ambulance', 'Mobile Medical', 'Police', 'Fire Truck'] },
+  { name: 'Khammam Supply Depot', loc: { lat: 17.2510, lng: 80.1450 }, types: ['Supply Truck', 'Utility Repair'] },
+  { name: 'Khammam Fire Station', loc: { lat: 17.2580, lng: 80.1530 }, types: ['Fire Truck', 'Road Clearance', 'Ambulance'] },
+
+  // Nizamabad Anchor points
+  { name: 'GGH Nizamabad Base', loc: { lat: 18.6725, lng: 78.0941 }, types: ['Ambulance', 'Mobile Medical', 'Police', 'Fire Truck', 'Utility Repair'] },
+  { name: 'Nizamabad Central Depot', loc: { lat: 18.6850, lng: 78.1020 }, types: ['Supply Truck', 'Disaster Response'] },
+
+  // Karimnagar Anchor points
+  { name: 'PIMS Karimnagar Base', loc: { lat: 18.4720, lng: 79.1650 }, types: ['Ambulance', 'Mobile Medical', 'Police', 'Traffic Police', 'SDRF'] },
   { name: 'Karimnagar Fire Station', loc: { lat: 18.4300, lng: 79.1300 }, types: ['Fire Truck', 'Ambulance'] },
-  { name: 'Nalgonda Relief Center', loc: { lat: 17.0600, lng: 79.2600 }, types: ['Supply Truck', 'Disaster Response'] },
-  { name: 'Khammam Supply Depot', loc: { lat: 17.2510, lng: 80.1450 }, types: ['Supply Truck', 'Utility Repair'] }
+
+  { name: 'Nalgonda Relief Center', loc: { lat: 17.0600, lng: 79.2600 }, types: ['Supply Truck', 'Disaster Response'] }
 ];
 
 const vehicleNamesMap: Record<string, string[]> = {

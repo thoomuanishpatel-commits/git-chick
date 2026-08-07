@@ -252,6 +252,19 @@ export default function RescuePlanner({
                       </div>
                       <p className="text-[10px] text-slate-300 italic">&quot;{selectedIncident.description}&quot;</p>
                       
+                      {selectedIncident.photoBase64 && (
+                        <div className="mt-2 space-y-1">
+                          <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold block">Attached Distress Photo</span>
+                          <div className="border border-white/10 rounded-lg overflow-hidden bg-zinc-950/60 max-h-36 flex justify-center items-center">
+                            <img 
+                              src={selectedIncident.photoBase64} 
+                              alt="Distress Scene" 
+                              className="max-w-full max-h-36 object-contain"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="grid grid-cols-2 gap-2 text-[10px] border-t border-white/5 pt-2">
                         <div className="text-slate-400">Severity Profile: <span className="text-white font-bold">{selectedIncident.severity}/100</span></div>
                         <div className="text-slate-400">Status: <span className="text-orange-400 font-bold uppercase">{selectedIncident.status}</span></div>

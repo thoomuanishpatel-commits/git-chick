@@ -181,7 +181,7 @@ export default function AIChatAssistant({
             <button
               key={idx}
               onClick={() => handleQuery(q)}
-              className="bg-white/5 hover:bg-cyan-950/20 border border-white/5 hover:border-cyan-800/40 text-[9px] text-slate-400 hover:text-cyan-300 px-2 py-1 rounded transition text-left"
+              className="bg-zinc-900/80 hover:bg-cyan-950/40 border border-white/15 hover:border-cyan-500/50 text-[10px] text-zinc-200 hover:text-cyan-300 px-2 py-1 rounded transition text-left cursor-pointer"
             >
               {q}
             </button>
