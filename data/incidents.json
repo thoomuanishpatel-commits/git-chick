@@ -2,6 +2,32 @@
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
+    "severity": 73,
+    "location": {
+      "lat": 17.472211265976238,
+      "lng": 78.4226140291842
+    },
+    "description": "CITIZEN SOS REPORT: eee. (Sub-location context: Live browser coordinates locked)",
+    "casualtyEstimate": 2,
+    "trappedCount": 1,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Pending",
+    "id": "inc-1788800066565-4onj",
+    "reportedAt": "22:24:26",
+    "addressContext": "LAT 17.4722, LNG 78.4226",
+    "isUserReported": true,
+    "starred": true
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
     "severity": 71,
     "location": {
       "lat": 17.38812265916929,
