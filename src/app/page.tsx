@@ -1840,13 +1840,13 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
-                  {incidents.filter(inc => inc.reporter === 'Citizen SOS' || inc.reporter === 'Citizen Portal' || inc.needsSOSValidation).length === 0 ? (
+                  {incidents.filter(inc => inc.isUserReported || inc.starred || inc.reporter === 'Citizen SOS' || inc.reporter === 'Citizen Portal' || inc.needsSOSValidation).length === 0 ? (
                     <div className="h-full flex items-center justify-center text-slate-500 italic text-[11px]">
                       NO ACTIVE CITIZEN DISTRESS SIGNALS REGISTERED
                     </div>
                   ) : (
                     incidents
-                      .filter(inc => inc.reporter === 'Citizen SOS' || inc.reporter === 'Citizen Portal' || inc.needsSOSValidation)
+                      .filter(inc => inc.isUserReported || inc.starred || inc.reporter === 'Citizen SOS' || inc.reporter === 'Citizen Portal' || inc.needsSOSValidation)
                       .map((inc) => {
                         const isSelected = selectedIncident?.id === inc.id;
                         const isPending = inc.needsSOSValidation || inc.status === 'Pending';

@@ -66,7 +66,7 @@ export default function SavedLocationsArchive({
 
       return true;
     });
-  }, [incidents, statusFilter, categoryFilter, searchQuery]);
+  }, [incidents, statusFilter, categoryFilter, searchQuery, onlyCitizenReports]);
 
   // Copy shareable link to clipboard
   const handleCopyLink = (inc: Incident) => {

@@ -188,67 +188,74 @@ export function useSimulation() {
     ]);
   }, []);
 
-  // Multi-browser synchronization via Server API (/api/incidents)
+  // Multi-device synchronization via Server API (/api/incidents) - Single Source of Truth
   useEffect(() => {
     let mounted = true;
 
     const syncWithServer = async () => {
       try {
-        const res = await fetch('/api/incidents');
+        const res = await fetch(`/api/incidents?_t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         if (!res.ok) return;
         const data = await res.json();
         if (data.success && Array.isArray(data.incidents) && mounted) {
+          const serverIncidents: Incident[] = data.incidents;
+
           setIncidents((current) => {
-            const currentMap = new Map(current.map((i) => [i.id, i]));
-            let changed = false;
-            const updatedList = [...current];
-
-            for (const sInc of data.incidents) {
-              const existing = currentMap.get(sInc.id);
-              if (!existing) {
-                // Newly reported incident from another browser!
-                updatedList.unshift(sInc);
-                changed = true;
-                addNotification(
-                  `CROSS-BROWSER INTAKE: ${sInc.type} reported from live citizen session.`,
-                  'emergency'
+            // Check if client and server already match completely
+            if (current.length === serverIncidents.length) {
+              const isExactMatch = current.every((c, idx) => {
+                const s = serverIncidents[idx];
+                return (
+                  s &&
+                  c.id === s.id &&
+                  c.status === s.status &&
+                  c.assignedVehicleId === s.assignedVehicleId &&
+                  c.trappedCount === s.trappedCount &&
+                  c.resolvedAt === s.resolvedAt &&
+                  c.severity === s.severity
                 );
-              } else if (
-                existing.status !== sInc.status ||
-                existing.assignedVehicleId !== sInc.assignedVehicleId ||
-                existing.trappedCount !== sInc.trappedCount ||
-                existing.resolvedAt !== sInc.resolvedAt
-              ) {
-                const idx = updatedList.findIndex((i) => i.id === sInc.id);
-                if (idx !== -1) {
-                  updatedList[idx] = { ...updatedList[idx], ...sInc };
-                  changed = true;
-                }
-              }
+              });
+              if (isExactMatch) return current;
             }
 
-            if (changed) {
-              persistIncidents(updatedList);
-              return updatedList;
+            // Detect new incidents from other devices (e.g. mobile phone SOS)
+            const currentIds = new Set(current.map((i) => i.id));
+            const newExternalIncidents = serverIncidents.filter((s) => !currentIds.has(s.id));
+
+            for (const newInc of newExternalIncidents) {
+              addNotification(
+                `CROSS-DEVICE INTAKE: ${newInc.type} reported from ${newInc.reporter || 'live citizen session'}.`,
+                'emergency'
+              );
             }
-            return current;
+
+            // Server database is the authoritative truth for all devices
+            persistIncidents(serverIncidents);
+            return serverIncidents;
           });
         }
       } catch (e) {
-        // Fallback silently to local cache
+        // Fallback silently to local cache on network error
       }
     };
 
-    // Immediate initial sync
+    // Immediate initial sync on mount
     syncWithServer();
 
-    // Poll every 2500ms so reporting in Browser A appears in Browser B within 2.5 seconds
-    const interval = setInterval(syncWithServer, 2500);
+    // Fast polling every 1500ms to guarantee sub-2s sync between phone, laptop, and tablet
+    const interval = setInterval(syncWithServer, 1500);
 
-    // Also sync on window focus
+    // Instant sync on window focus and visibility change (e.g. mobile screen unlock)
     const handleFocus = () => syncWithServer();
     if (typeof window !== 'undefined') {
       window.addEventListener('focus', handleFocus);
+      document.addEventListener('visibilitychange', handleFocus);
     }
 
     return () => {
@@ -256,6 +263,7 @@ export function useSimulation() {
       clearInterval(interval);
       if (typeof window !== 'undefined') {
         window.removeEventListener('focus', handleFocus);
+        document.removeEventListener('visibilitychange', handleFocus);
       }
     };
   }, [addNotification]);
@@ -439,6 +447,17 @@ export function useSimulation() {
               )
             );
 
+            // Sync dispatch to Server API so all connected devices update in real-time
+            fetch('/api/incidents', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: incidentId,
+                status: 'Dispatched',
+                assignedVehicleId: vehicleId
+              }),
+            }).catch((err) => console.error('[useSimulation] PATCH /api/incidents dispatch error:', err));
+
             // Sync dispatch to Supabase in background
             if (isSupabaseConfigured && supabase) {
               supabase!.from('incidents').update({ status: 'Dispatched', assignedVehicleId: vehicleId }).eq('id', incidentId).then();
@@ -482,6 +501,9 @@ export function useSimulation() {
         status: incident.type === 'POLICE_SOS' ? 'SOS Sent' : (incident.status || 'Pending'),
         reportedAt: timeStr,
         addressContext: incident.addressContext || `LAT ${incident.location.lat.toFixed(4)}, LNG ${incident.location.lng.toFixed(4)}`,
+        requiredResources: Array.isArray(incident.requiredResources) && incident.requiredResources.length > 0
+          ? incident.requiredResources
+          : ['First Responder Unit'],
         isUserReported: true,
         starred: true,
       };
@@ -792,6 +814,12 @@ export function useSimulation() {
                         inc.id === v.activeIncidentId ? { ...inc, status: 'Active' } : inc
                       )
                     );
+                    // Sync active status to Server API
+                    fetch('/api/incidents', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: v.activeIncidentId, status: 'Active' })
+                    }).catch(() => {});
                   }
 
                   // Sync arrival to Supabase
@@ -915,6 +943,13 @@ export function useSimulation() {
                       resolvedAt: resolveTime,
                       resolutionSummary: `Operation concluded at ${resolveTime}. Hazard neutralized, victims evacuated to emergency shelter.`
                     };
+
+                    // Sync resolution to Server API so all connected devices update
+                    fetch('/api/incidents', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(resolvedInc)
+                    }).catch(() => {});
 
                     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
                       try {

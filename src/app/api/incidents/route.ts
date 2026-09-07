@@ -6,6 +6,9 @@ import { Incident, defaultIncidents } from '../../../utils/mockData';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'incidents.json');
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 function ensureDataFile(): Incident[] {
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -35,23 +38,35 @@ function saveDataFile(incidents: Incident[]) {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(incidents, null, 2), 'utf-8');
+    const tempFile = `${DATA_FILE}.tmp.${Date.now()}`;
+    fs.writeFileSync(tempFile, JSON.stringify(incidents, null, 2), 'utf-8');
+    fs.renameSync(tempFile, DATA_FILE);
   } catch (err) {
     console.error('[API /api/incidents] Failed to write data file:', err);
   }
 }
 
-// GET /api/incidents
+// GET /api/incidents - Authoritative live incident feed with strictly disabled caching
 export async function GET() {
   const incidents = ensureDataFile();
-  return NextResponse.json({
-    success: true,
-    count: incidents.length,
-    incidents
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      count: incidents.length,
+      incidents
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      }
+    }
+  );
 }
 
-// POST /api/incidents
+// POST /api/incidents - Ingests new emergency reports from any device
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -66,6 +81,9 @@ export async function POST(req: Request) {
       id: body.id || `inc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       reportedAt: body.reportedAt || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: body.status || 'Active',
+      requiredResources: Array.isArray(body.requiredResources) && body.requiredResources.length > 0
+        ? body.requiredResources
+        : ['First Responder Unit'],
       isUserReported: true,
       starred: true
     };
@@ -77,7 +95,7 @@ export async function POST(req: Request) {
       updated = [...current];
       updated[existingIndex] = { ...updated[existingIndex], ...newIncident };
     } else {
-      // Prepend user-reported incident so it's prioritized at top
+      // Prepend user-reported incident so it's prioritized at top of all portals
       updated = [newIncident, ...current];
     }
 
@@ -86,7 +104,12 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       incident: newIncident,
-      count: updated.length
+      count: updated.length,
+      incidents: updated
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+      }
     });
   } catch (err: any) {
     console.error('[API POST /api/incidents] Error:', err);
@@ -94,7 +117,7 @@ export async function POST(req: Request) {
   }
 }
 
-// PATCH /api/incidents
+// PATCH /api/incidents - Real-time sync for dispatch status, resolution, and vehicle assignment
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
@@ -109,18 +132,24 @@ export async function PATCH(req: Request) {
       // If it doesn't exist, insert it
       const newInc: Incident = {
         ...body,
+        requiredResources: Array.isArray(body.requiredResources) && body.requiredResources.length > 0
+          ? body.requiredResources
+          : ['First Responder Unit'],
         isUserReported: body.isUserReported ?? true,
         starred: body.starred ?? true
       };
       const updated = [newInc, ...current];
       saveDataFile(updated);
-      return NextResponse.json({ success: true, incident: newInc });
+      return NextResponse.json({ success: true, incident: newInc, count: updated.length, incidents: updated });
     }
 
     // Preserve isUserReported and starred if previously flagged
     const merged: Incident = {
       ...current[index],
       ...body,
+      requiredResources: Array.isArray(body.requiredResources || current[index].requiredResources)
+        ? (body.requiredResources || current[index].requiredResources)
+        : ['First Responder Unit'],
       isUserReported: current[index].isUserReported || body.isUserReported || false,
       starred: current[index].starred || body.starred || false
     };
@@ -131,10 +160,40 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({
       success: true,
-      incident: merged
+      incident: merged,
+      count: updated.length,
+      incidents: updated
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+      }
     });
   } catch (err: any) {
     console.error('[API PATCH /api/incidents] Error:', err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
+
+// DELETE /api/incidents - Archive or purge incident
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Missing incident ID' }, { status: 400 });
+    }
+
+    const current = ensureDataFile();
+    const updated = current.filter(i => i.id !== id);
+    saveDataFile(updated);
+
+    return NextResponse.json({
+      success: true,
+      count: updated.length,
+      incidents: updated
+    });
+  } catch (err: any) {
+    console.error('[API DELETE /api/incidents] Error:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

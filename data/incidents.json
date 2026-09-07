@@ -196,7 +196,10 @@
     "reportedAt": "10:22 PM",
     "status": "Active",
     "isUserReported": true,
-    "starred": true
+    "starred": true,
+    "requiredResources": [
+      "First Responder Unit"
+    ]
   },
   {
     "id": "inc-101",

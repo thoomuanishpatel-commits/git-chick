@@ -586,8 +586,10 @@ export default function CommandMap({
     return list;
   }, [roadClosures, forecastHours]);
 
-  // Filter lists based on culling to reduce Leaflet DOM nodes
-  const visibleIncidents = incidents.filter(inc => inc.status !== 'Resolved' && isVisible(inc.location));
+  // Filter lists based on culling to reduce Leaflet DOM nodes (Citizen reports and selected incidents are never culled)
+  const visibleIncidents = incidents.filter(
+    inc => inc.status !== 'Resolved' && (inc.isUserReported || inc.starred || inc.id === selectedIncident?.id || isVisible(inc.location))
+  );
   const visibleResolvedIncidents = incidents.filter(inc => inc.status === 'Resolved' && isVisible(inc.location));
   const visibleVehicles = vehicles.filter(v => isVisible(v.location) || v.status === 'EnRoute');
   const visibleHospitals = hospitals.filter(h => isVisible(h.location));

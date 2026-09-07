@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Truck, Compass, Settings, Battery, ShieldCheck, Package, AlertTriangle, MapPin, ExternalLink, Copy, Star } from 'lucide-react';
 import { Incident, Vehicle, Warehouse, Shelter, Hospital } from '../utils/mockData';
 import { recommendVehiclesForIncident, rankWarehousesForSupply } from '../utils/routing';
@@ -112,6 +112,18 @@ export default function RescuePlanner({
     ? recommendVehiclesForIncident(selectedIncident, vehicles, hazards, roadClosures)
     : [];
 
+  // Active incidents sorted with Citizen Reports (starred / user reported) prioritized at top
+  const sortedIncidents = useMemo(() => {
+    return [...incidents]
+      .filter((inc) => inc.status !== 'Resolved')
+      .sort((a, b) => {
+        const aUser = a.isUserReported || a.starred ? 1 : 0;
+        const bUser = b.isUserReported || b.starred ? 1 : 0;
+        if (bUser !== aUser) return bUser - aUser; // Citizen reports always first
+        return (b.severity || 0) - (a.severity || 0); // Then higher severity first
+      });
+  }, [incidents]);
+
   return (
     <div className="w-full h-full flex flex-col space-y-4">
       {/* Sub-Tabs Navigation */}
@@ -147,36 +159,42 @@ export default function RescuePlanner({
           }`}
         >
           <Package className="w-3.5 h-3.5" />
-          <span>SUPPLY CHAIN LOGISTICS</span>
+          <span>WAREHOUSE LOGISTICS</span>
         </button>
       </div>
 
       <div className="flex-1 min-h-0">
         {/* Tab 1: Dispatcher */}
         {plannerTab === 'dispatch' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
             {/* List of active incidents */}
             <div className="glass-panel p-4 rounded-xl flex flex-col min-h-0">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
-                  {selectedCategory === 'Police SOS' ? '👮 POLICE SOS QUEUE' : 'Active Emergency Tickets'}
+              <div className="flex justify-between items-center mb-2 px-1">
+                <span className="text-xs font-bold text-slate-300 font-mono flex items-center gap-1.5">
+                  <span>ACTIVE EMERGENCY INCIDENTS</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-400 border border-cyan-500/30">
+                    {sortedIncidents.length}
+                  </span>
                 </span>
+                <span className="text-[10px] text-slate-500 font-mono">LIVE PRIORITY QUEUE</span>
+              </div>
+              <div className="mb-2 px-1">
                 <select
                   value={selectedCategory}
                   onChange={(e) => onChangeCategory?.(e.target.value)}
-                  className="bg-cyan-950/20 border border-cyan-500/50 text-cyan-400 font-bold font-mono text-[9px] px-2 py-1 rounded cursor-pointer transition-all duration-300 outline-none shadow-[0_0_8px_rgba(6,182,212,0.2)] hover:border-cyan-450 hover:shadow-[0_0_12px_rgba(6,182,212,0.4)]"
+                  className="w-full bg-zinc-900 border border-white/10 rounded px-2.5 py-1 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
                 >
                   {[
-                    'Disasters',
-                    '⭐ Citizen Reports',
-                    'Police SOS',
                     'All',
+                    '⭐ Citizen Reports',
+                    'Disasters',
+                    'Police SOS',
                     'Disaster Response',
-                    'Public Safety',
                     'Animal Rescue',
                     'Veterinary Services',
                     'Infrastructure Issues',
                     'Utility Failures',
+                    'Public Safety',
                     'Environmental Hazards'
                   ].map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -184,14 +202,12 @@ export default function RescuePlanner({
                 </select>
               </div>
               <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                {incidents.filter((inc) => inc.status !== 'Resolved').length === 0 ? (
+                {sortedIncidents.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-slate-600 text-xs font-mono">
                     ALL HAZARD SCENES REPORTED SECURED
                   </div>
                 ) : (
-                  incidents
-                    .filter((inc) => inc.status !== 'Resolved')
-                    .map((inc) => {
+                  sortedIncidents.map((inc: Incident) => {
                       const isSelected = selectedIncident?.id === inc.id;
                       const isCitizenReport = inc.isUserReported || inc.starred;
                       return (
@@ -587,7 +603,7 @@ export default function RescuePlanner({
 
                       {/* Base required resources */}
                       <div className="text-slate-400 text-[10px] border-t border-white/5 pt-2">
-                        Required units: <span className="text-orange-300 font-bold">{selectedIncident.requiredResources.join(', ')}</span>
+                        Required units: <span className="text-orange-300 font-bold">{Array.isArray(selectedIncident.requiredResources) && selectedIncident.requiredResources.length > 0 ? selectedIncident.requiredResources.join(', ') : 'First Responder Unit'}</span>
                       </div>
                     </div>
 
