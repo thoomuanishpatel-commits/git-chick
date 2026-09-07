@@ -297,7 +297,8 @@ export default function CommandMap({
     windradar: false,
     lightning: false,
     policeStations: true,
-    fireStations: true
+    fireStations: true,
+    resolvedIncidents: true
   });
 
 
@@ -529,6 +530,29 @@ export default function CommandMap({
 
   const closureIcon = useMemo(() => createClosureIcon(), [createClosureIcon]);
 
+  const createResolvedIcon = useCallback((type: string) => {
+    let symbol = '✓';
+    if (type === 'Flood') symbol = '🌊';
+    else if (type === 'Fire') symbol = '🔥';
+    else if (type === 'Medical Emergency') symbol = '🚑';
+
+    return L.divIcon({
+      html: `
+        <div class="relative flex items-center justify-center cursor-pointer group">
+          <div class="w-6 h-6 rounded-full bg-emerald-700/90 border border-emerald-400 text-white flex items-center justify-center text-[10px] font-bold shadow-[0_0_12px_#10b981] group-hover:scale-110 transition-transform">
+            ${symbol}
+          </div>
+          <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border border-black flex items-center justify-center text-[8px] text-black font-extrabold shadow-sm">
+            ✓
+          </div>
+        </div>
+      `,
+      className: 'custom-resolved-icon',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+  }, []);
+
   const toggleLayer = (key: keyof typeof layers) => {
     setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -558,6 +582,7 @@ export default function CommandMap({
 
   // Filter lists based on culling to reduce Leaflet DOM nodes
   const visibleIncidents = incidents.filter(inc => inc.status !== 'Resolved' && isVisible(inc.location));
+  const visibleResolvedIncidents = incidents.filter(inc => inc.status === 'Resolved' && isVisible(inc.location));
   const visibleVehicles = vehicles.filter(v => isVisible(v.location) || v.status === 'EnRoute');
   const visibleHospitals = hospitals.filter(h => isVisible(h.location));
   const visibleShelters = shelters.filter(s => isVisible(s.location));
@@ -1072,7 +1097,7 @@ export default function CommandMap({
             </Marker>
           ))}
 
-        {/* Dynamic Celled Incidents */}
+        {/* Dynamic Celled Incidents (Active) */}
         {visibleIncidents.map((inc) => (
           <Marker
             key={inc.id}
@@ -1083,22 +1108,77 @@ export default function CommandMap({
             }}
           >
             <Popup>
-              <div className="w-56 text-[10px] font-mono space-y-1 text-zinc-300">
+              <div className="w-60 text-[10px] font-mono space-y-1.5 text-zinc-300">
                 <div className="flex justify-between items-center border-b border-white/10 pb-1">
                   <span className="font-bold text-red-400 uppercase">{inc.type} Scene</span>
                   <span className="bg-white/10 px-1 rounded text-[8px]">PRIORITY: {inc.aiPriority}</span>
                 </div>
                 <p className="text-white text-[11px] font-semibold leading-tight">{inc.description}</p>
-                <div className="grid grid-cols-2 gap-1 bg-black/40 p-1 rounded text-zinc-400">
+                <div className="grid grid-cols-2 gap-1 bg-black/40 p-1.5 rounded text-zinc-400 text-[8.5px]">
                   <div>Severity: <span className="text-orange-400 font-bold">{inc.severity}%</span></div>
                   <div>Trapped: <span className="text-white font-bold">{inc.trappedCount}</span></div>
                   <div>ETA: <span className="text-cyan-400 font-bold">{inc.etaResolution}h</span></div>
                   <div>Assigned: <span className="text-white font-bold">{inc.assignedVehicleId || 'NONE'}</span></div>
                 </div>
+                <div className="text-[8px] text-zinc-400 font-mono flex items-center justify-between">
+                  <span>LAT: {inc.location.lat.toFixed(4)}, LNG: {inc.location.lng.toFixed(4)}</span>
+                </div>
+                <div className="pt-1 flex gap-1">
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${inc.location.lat},${inc.location.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-center py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-400 font-bold rounded text-[8.5px] uppercase flex items-center justify-center gap-1"
+                  >
+                    <span>🗺️ Open in Google Maps</span>
+                  </a>
+                </div>
               </div>
             </Popup>
           </Marker>
         ))}
+
+        {/* Historical Resolved Incidents (Saved Locations Archive) */}
+        {layers.resolvedIncidents &&
+          visibleResolvedIncidents.map((inc) => (
+            <Marker
+              key={`resolved-${inc.id}`}
+              position={[inc.location.lat, inc.location.lng]}
+              icon={createResolvedIcon(inc.type)}
+              eventHandlers={{
+                click: () => onSelectIncident(inc),
+              }}
+            >
+              <Popup>
+                <div className="w-60 text-[10px] font-mono space-y-1.5 text-zinc-300">
+                  <div className="flex justify-between items-center border-b border-emerald-500/30 pb-1">
+                    <span className="font-bold text-emerald-400 uppercase flex items-center gap-1">
+                      <span>✓</span> {inc.type} Scene
+                    </span>
+                    <span className="bg-emerald-950 text-emerald-300 border border-emerald-500/30 px-1 rounded text-[8px] font-bold">
+                      RESOLVED
+                    </span>
+                  </div>
+                  <p className="text-white text-[10px] leading-tight font-medium">{inc.description}</p>
+                  <div className="p-1.5 bg-emerald-950/20 border border-emerald-500/20 rounded text-[8.5px] text-emerald-300 space-y-0.5">
+                    <div>Status: <span className="text-white font-bold">Successfully Evacuated</span></div>
+                    {inc.resolvedAt && <div>Resolved at: <span className="text-white font-bold">{inc.resolvedAt}</span></div>}
+                    <div>Coordinates: <span className="font-mono text-cyan-300">{inc.location.lat.toFixed(4)}°N, {inc.location.lng.toFixed(4)}°E</span></div>
+                  </div>
+                  <div className="pt-1 flex gap-1">
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${inc.location.lat},${inc.location.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full text-center py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-400 font-bold rounded text-[8.5px] uppercase flex items-center justify-center gap-1"
+                    >
+                      <span>🗺️ Open in Google Maps</span>
+                    </a>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
         {/* Infrastructure: Hospitals */}
         {showBases && layers.hospitals &&
@@ -1268,9 +1348,22 @@ export default function CommandMap({
         </button>
 
         {layersPanelOpen && (
-          <div className="absolute right-0 mt-2 w-52 bg-zinc-900/95 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-2xl font-mono text-[9px] space-y-1.5 max-h-96 overflow-y-auto">
+          <div className="absolute right-0 mt-2 w-56 bg-zinc-900/95 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-2xl font-mono text-[9px] space-y-1.5 max-h-96 overflow-y-auto">
             <span className="font-bold text-zinc-400 uppercase tracking-widest block border-b border-white/5 pb-1 mb-2">T-AIDRCC Map Layers</span>
             
+            <button
+              onClick={() => toggleLayer('resolvedIncidents')}
+              className="flex items-center justify-between w-full text-left py-1.5 px-1 rounded bg-emerald-950/20 border border-emerald-500/20 text-emerald-400 hover:text-white mb-1 transition"
+            >
+              <span className="font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>Resolved Locations Archive</span>
+              </span>
+              <div className="w-3.5 h-3.5 border border-emerald-400/40 rounded flex items-center justify-center bg-black/40">
+                {layers.resolvedIncidents && <Check className="w-2.5 h-2.5 text-emerald-400" />}
+              </div>
+            </button>
+
             <button
               onClick={() => toggleLayer('districts')}
               className="flex items-center justify-between w-full text-left py-1 text-zinc-300 hover:text-white"

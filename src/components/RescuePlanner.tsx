@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Truck, Compass, Settings, Battery, ShieldCheck, Package, AlertTriangle } from 'lucide-react';
+import { Truck, Compass, Settings, Battery, ShieldCheck, Package, AlertTriangle, MapPin, ExternalLink, Copy } from 'lucide-react';
 import { Incident, Vehicle, Warehouse, Shelter, Hospital } from '../utils/mockData';
 import { recommendVehiclesForIncident, rankWarehousesForSupply } from '../utils/routing';
 
@@ -268,6 +268,39 @@ export default function RescuePlanner({
                       <div className="grid grid-cols-2 gap-2 text-[10px] border-t border-white/5 pt-2">
                         <div className="text-slate-400">Severity Profile: <span className="text-white font-bold">{selectedIncident.severity}/100</span></div>
                         <div className="text-slate-400">Status: <span className="text-orange-400 font-bold uppercase">{selectedIncident.status}</span></div>
+                      </div>
+
+                      {/* Saved Coordinates & Google Maps Navigation */}
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 p-1.5 bg-black/40 rounded border border-white/5 text-[9px] font-mono">
+                        <div className="flex items-center space-x-1 text-cyan-400">
+                          <MapPin className="w-3 h-3" />
+                          <span>{selectedIncident.location.lat.toFixed(4)}°N, {selectedIncident.location.lng.toFixed(4)}°E</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = `${window.location.origin}${window.location.pathname}?incident=${selectedIncident.id}`;
+                              navigator.clipboard.writeText(url);
+                              addNotification(`Direct link copied for ${selectedIncident.type}.`, 'success');
+                            }}
+                            className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center gap-1 transition cursor-pointer"
+                            title="Copy shareable link"
+                          >
+                            <Copy className="w-2.5 h-2.5" />
+                            <span>Share</span>
+                          </button>
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${selectedIncident.location.lat},${selectedIncident.location.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-1.5 py-0.5 rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-400 font-bold flex items-center gap-1 transition cursor-pointer"
+                            title="Navigate in Google Maps"
+                          >
+                            <ExternalLink className="w-2.5 h-2.5" />
+                            <span>Directions</span>
+                          </a>
+                        </div>
                       </div>
 
                       {/* SOS Verification Widget */}

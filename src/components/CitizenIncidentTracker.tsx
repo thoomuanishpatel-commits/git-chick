@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { 
   Search, ArrowLeft, Clock, Shield, CheckCircle2, 
   MapPin, Truck, AlertTriangle, Users, HeartHandshake,
-  Activity, ArrowRight
+  Activity, ArrowRight, ExternalLink, Copy, Check, Share2, Navigation
 } from 'lucide-react';
 import { Incident, Vehicle } from '../utils/mockData';
 import CitizenSOS from './CitizenSOS';
@@ -44,6 +44,41 @@ export default function CitizenIncidentTracker({
 }: CitizenIncidentTrackerProps) {
   const [activeTab, setActiveTab] = useState<'report' | 'track'>('report');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'resolved'>('all');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Obtain live browser location for distance calculations
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLocation({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          });
+        },
+        () => {
+          // Fallback to central Hyderabad coordinates
+          setUserLocation({ lat: 17.3850, lng: 78.4867 });
+        },
+        { enableHighAccuracy: false, timeout: 4000 }
+      );
+    }
+  }, []);
+
+  // Copy shareable disaster link
+  const handleCopyLink = (inc: Incident) => {
+    if (typeof window === 'undefined') return;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?incident=${inc.id}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopiedId(inc.id);
+      setTimeout(() => setCopiedId(null), 2500);
+      addNotification(`LINK COPIED: Disaster link for ${inc.type} scene copied to clipboard.`, 'success');
+    }).catch(() => {
+      addNotification('Could not copy link to clipboard.', 'warning');
+    });
+  };
 
   // Switch tab when an incident gets selected externally (e.g. from clicking on map)
   useEffect(() => {
@@ -57,16 +92,24 @@ export default function CitizenIncidentTracker({
     return incidents.filter(inc => inc.status !== 'Resolved' && inc.status !== 'Closed').length;
   }, [incidents]);
 
-  // Filter reported incidents by search query
+  // Filter reported incidents by search query and status
   const filteredIncidents = useMemo(() => {
     return incidents.filter(inc => {
-      const query = searchQuery.toLowerCase();
-      return (
-        inc.type.toLowerCase().includes(query) ||
-        inc.description.toLowerCase().includes(query)
-      );
+      const isResolved = inc.status === 'Resolved' || inc.status === 'Closed';
+      if (statusFilter === 'active' && isResolved) return false;
+      if (statusFilter === 'resolved' && !isResolved) return false;
+
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return (
+          inc.type.toLowerCase().includes(query) ||
+          inc.description.toLowerCase().includes(query) ||
+          (inc.addressContext && inc.addressContext.toLowerCase().includes(query))
+        );
+      }
+      return true;
     });
-  }, [incidents, searchQuery]);
+  }, [incidents, searchQuery, statusFilter]);
 
   const assignedVehicle = useMemo(() => {
     if (!selectedIncident || !selectedIncident.assignedVehicleId) return null;
@@ -474,13 +517,39 @@ export default function CitizenIncidentTracker({
                       {selectedIncident.description}
                     </p>
 
-                    <div className="mt-3 flex items-center space-x-4 text-[10px] text-slate-500">
-                      <div className="flex items-center space-x-1">
-                        <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Lat {selectedIncident.location.lat.toFixed(4)}, Lng {selectedIncident.location.lng.toFixed(4)}</span>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-400 border-t border-white/5 pt-2">
+                      <div className="flex items-center space-x-1.5 font-mono">
+                        <MapPin className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                        <span>{selectedIncident.location.lat.toFixed(4)}°N, {selectedIncident.location.lng.toFixed(4)}°E</span>
+                        {userLocation && (
+                          <span className="text-zinc-500 hidden sm:inline">
+                            • {getDistance(userLocation, selectedIncident.location).toFixed(1)} km away
+                          </span>
+                        )}
                       </div>
-                      <span>•</span>
-                      <span>Reported: {selectedIncident.reportedAt}</span>
+
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyLink(selectedIncident)}
+                          className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-zinc-300 hover:text-white font-mono text-[9px] flex items-center gap-1 transition cursor-pointer"
+                          title="Copy shareable link to this disaster location"
+                        >
+                          {copiedId === selectedIncident.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedId === selectedIncident.id ? 'COPIED' : 'SHARE LINK'}</span>
+                        </button>
+                        
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${selectedIncident.location.lat},${selectedIncident.location.lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-400 font-mono text-[9px] font-bold flex items-center gap-1 transition cursor-pointer"
+                          title="Open Google Maps driving/transit directions to this location"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>NAVIGATE</span>
+                        </a>
+                      </div>
                     </div>
                   </div>
 
@@ -643,22 +712,61 @@ export default function CitizenIncidentTracker({
             ) : (
               /* Sub-view: Reported Incidents List */
               <div className="flex-1 flex flex-col min-h-0">
-                {/* Search Box */}
-                <div className="relative mb-3 flex-shrink-0">
-                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Search reported disasters (e.g. Flood, Musi, Fire)..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-zinc-900/50 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition"
-                  />
+                {/* Search Box and Status Tabs */}
+                <div className="space-y-2 mb-3 flex-shrink-0">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="Search reported disasters (e.g. Flood, Musi, Fire)..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-zinc-900/50 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition"
+                    />
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center space-x-1.5 text-[9px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('all')}
+                      className={`px-2 py-1 rounded transition uppercase ${
+                        statusFilter === 'all'
+                          ? 'bg-cyan-500 text-black'
+                          : 'bg-white/5 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      All ({incidents.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('active')}
+                      className={`px-2 py-1 rounded transition uppercase ${
+                        statusFilter === 'active'
+                          ? 'bg-red-600 text-white'
+                          : 'bg-white/5 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Active ({activeIncidentsCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('resolved')}
+                      className={`px-2 py-1 rounded transition uppercase ${
+                        statusFilter === 'resolved'
+                          ? 'bg-emerald-600 text-black'
+                          : 'bg-white/5 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Resolved ({incidents.length - activeIncidentsCount})
+                    </button>
+                  </div>
                 </div>
 
                 {filteredIncidents.length === 0 ? (
                   <div className="text-center py-12 text-slate-500 border border-dashed border-white/5 rounded-xl flex-1 flex flex-col justify-center items-center">
                     <AlertTriangle className="w-8 h-8 text-slate-600 mb-2" />
-                    <p className="text-[11px] mb-2 font-bold uppercase text-slate-400">No active incidents found</p>
+                    <p className="text-[11px] mb-2 font-bold uppercase text-slate-400">No matching incidents found</p>
                     <p className="text-[10px] text-slate-500 max-w-xs px-4 mb-4">
                       No disaster reports matching your search or active in the Telangana region.
                     </p>
@@ -673,7 +781,7 @@ export default function CitizenIncidentTracker({
                 ) : (
                   <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
                     <p className="text-[9px] text-slate-500 uppercase tracking-wider block mb-2">
-                      Active Disaster Feeds ({filteredIncidents.length})
+                      Reported Disaster Locations ({filteredIncidents.length})
                     </p>
                     {filteredIncidents.map(inc => {
                       let emoji = '🚨';
@@ -693,10 +801,13 @@ export default function CitizenIncidentTracker({
                       else if (inc.status === 'Active') statusColor = 'text-red-400 bg-red-950/20 border-red-500/20';
                       else if (inc.status === 'Resolved') statusColor = 'text-emerald-400 bg-emerald-950/20 border-emerald-500/20';
 
+                      const distanceKm = userLocation ? getDistance(userLocation, inc.location) : null;
+                      const isCopied = copiedId === inc.id;
+
                       return (
                         <div 
                           key={inc.id}
-                          className="p-3 rounded-xl border bg-white/5 border-white/5 hover:border-white/10 transition flex flex-col justify-between"
+                          className="p-3 rounded-xl border bg-white/5 border-white/5 hover:border-white/10 transition flex flex-col justify-between space-y-2"
                         >
                           <div>
                             <div className="flex justify-between items-start mb-1.5">
@@ -712,28 +823,63 @@ export default function CitizenIncidentTracker({
                               </span>
                             </div>
 
-                            <p className="text-slate-400 text-[10px] line-clamp-2 leading-relaxed mb-3">
+                            <p className="text-slate-400 text-[10px] line-clamp-2 leading-relaxed mb-2">
                               {inc.description}
                             </p>
+
+                            {/* Location Coordinate & Share Bar */}
+                            <div className="flex items-center justify-between text-[8.5px] font-mono text-zinc-400 bg-black/25 p-1.5 rounded border border-white/5">
+                              <div className="flex items-center space-x-1">
+                                <MapPin className="w-3 h-3 text-cyan-400 flex-shrink-0" />
+                                <span>{inc.location.lat.toFixed(4)}°N, {inc.location.lng.toFixed(4)}°E</span>
+                                {distanceKm !== null && (
+                                  <span className="text-cyan-400 font-bold">• {distanceKm.toFixed(1)} km away</span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyLink(inc);
+                                }}
+                                className="text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer px-1 py-0.5 rounded hover:bg-white/10 transition"
+                                title="Copy direct link to this disaster location"
+                              >
+                                {isCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                <span>{isCopied ? 'Copied' : 'Share'}</span>
+                              </button>
+                            </div>
                           </div>
 
-                          <div className="flex justify-between items-center border-t border-white/5 pt-2.5">
+                          <div className="flex justify-between items-center border-t border-white/5 pt-2">
                             <div className="flex items-center space-x-2 text-[9px] text-slate-500">
                               <span className="px-1 py-0.5 rounded bg-white/5 font-mono text-[8px] border border-white/10 text-red-400 font-bold">
-                                Severity: {inc.severity}
+                                Sev: {inc.severity}%
                               </span>
                               <span>•</span>
                               <span>{inc.trappedCount} trapped</span>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => onSelectIncident(inc)}
-                              className="px-2 py-1 rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-400 font-bold transition text-[9px] flex items-center space-x-1"
-                            >
-                              <span>Track Operations</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </button>
+                            <div className="flex items-center space-x-1.5">
+                              <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${inc.location.lat},${inc.location.lng}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-cyan-400 hover:text-white font-bold transition text-[9px] flex items-center space-x-1 cursor-pointer"
+                                title="Open Google Maps directions to this location"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span>Directions</span>
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => onSelectIncident(inc)}
+                                className="px-2 py-1 rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-400 font-bold transition text-[9px] flex items-center space-x-1 cursor-pointer"
+                              >
+                                <span>Track</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );

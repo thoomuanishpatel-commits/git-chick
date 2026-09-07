@@ -33,7 +33,8 @@ import {
   Moon,
   Shield,
   ArrowRight,
-  ArrowDown
+  ArrowDown,
+  Database
 } from 'lucide-react';
 import { AuthProvider, useAuth, UserRole } from '../context/AuthContext';
 import Login from '../components/Login';
@@ -56,6 +57,7 @@ import CitizenIncidentTracker from '../components/CitizenIncidentTracker';
 import RiskPrediction from '../components/RiskPrediction';
 import AIChatAssistant from '../components/AIChatAssistant';
 import ReportGenerator from '../components/ReportGenerator';
+import SavedLocationsArchive from '../components/SavedLocationsArchive';
 import ResizablePanel from '../components/ResizablePanel';
 import { FAQ } from '../components/ui/faq-section';
 
@@ -205,6 +207,7 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
     setAutopilotEnabled,
     dispatchVehicle,
     addIncident,
+    updateIncident,
     clearNotifications,
     toggleRoadClosure,
     addNotification
@@ -226,11 +229,40 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
     setAutopilotEnabled(!autopilotEnabled);
   }, [autopilotEnabled, setAutopilotEnabled]);
 
-  const [activeConsoleTab, setActiveConsoleTab] = useState<'dispatch' | 'analyzer' | 'sos' | 'risk' | 'chat' | 'analytics' | 'reports'>('dispatch');
+  const [activeConsoleTab, setActiveConsoleTab] = useState<'dispatch' | 'archive' | 'analyzer' | 'sos' | 'risk' | 'chat' | 'analytics' | 'reports'>('dispatch');
   const [sosConsoleRightTab, setSosConsoleRightTab] = useState<'inspect' | 'manual'>('inspect');
   const [forecastHours, setForecastHours] = useState<number>(0);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  
+
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+
+  // Deep linking URL query parameters listener (?incident=<id> or ?view=citizen|admin)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const targetId = params.get('incident');
+      const view = params.get('view');
+
+      if (view === 'citizen') {
+        setCurrentView('citizen');
+      } else if (view === 'admin') {
+        setCurrentView('admin');
+      }
+
+      if (targetId && incidents.length > 0) {
+        const found = incidents.find((i) => i.id === targetId);
+        if (found) {
+          setSelectedIncident(found);
+          addNotification(`TELEMETRY DIRECT LINK: Loaded coordinates for ${found.type} (${found.id}).`, 'info');
+        }
+      }
+    } catch (err) {
+      console.error('Deep link query param error:', err);
+    }
+  }, [incidents, addNotification]);
+
   const filteredIncidents = useMemo(() => {
     if (selectedCategory === 'All') return incidents;
     if (selectedCategory === 'Disasters') {
@@ -242,11 +274,61 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
     return incidents.filter(inc => inc.category === selectedCategory);
   }, [incidents, selectedCategory]);
 
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  // Hardware panic shortcut listener (Volume Up key triple press)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleHardwarePanic = () => {
+      // Find current user coordinates (or use Gachibowli as fallback)
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          triggerPanicSOS(location);
+        },
+        () => {
+          // Fallback to Hyderabad Gachibowli center
+          const location = { lat: 17.4483, lng: 78.3741 };
+          triggerPanicSOS(location);
+        }
+      );
+    };
+
+    const triggerPanicSOS = (location: { lat: number; lng: number }) => {
+      const newInc = handleAddIncident({
+        type: 'POLICE_SOS',
+        category: 'Public Safety',
+        severity: 95,
+        location,
+        description: '🚨 HARDWARE PANIC ALARM: Emergency SOS triggered via hardware volume-key shortcut!',
+        casualtyEstimate: 1,
+        trappedCount: 0,
+        requiredResources: ['Police Patrol', 'Paramedics'],
+        reporter: 'Citizen SOS',
+        aiPriority: 'CRITICAL',
+        etaResolution: 1.0,
+        needsSOSValidation: false
+      });
+      
+      addNotification('⚠️ PANIC SHORTCUT ACTIVATED: Creating critical SOS ticket and notifying EOC!', 'emergency');
+      setCurrentView('citizen'); // Redirect user to citizen portal to show tracking
+      
+      // Auto-center map or select incident if possible
+      if (newInc) {
+        setSelectedIncident(newInc);
+      }
+    };
+
+    window.addEventListener('volumeUpPanicTriggered', handleHardwarePanic);
+    return () => {
+      window.removeEventListener('volumeUpPanicTriggered', handleHardwarePanic);
+    };
+  }, [handleAddIncident, addNotification, setSelectedIncident]);
   
   const handleUpdateIncident = useCallback((updated: Incident) => {
-    setIncidents(prev => prev.map(inc => inc.id === updated.id ? updated : inc));
+    updateIncident(updated);
     setSelectedIncident(updated);
 
     if (updated.type === 'POLICE_SOS') {
@@ -503,6 +585,7 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
 
   const navItems = [
     { id: 'dispatch', label: 'Logistics Dispatch', icon: Compass },
+    { id: 'archive', label: 'Saved Locations Archive', icon: Database },
     { id: 'analyzer', label: 'AI Intel Analyzer', icon: Radio },
     { id: 'sos', label: 'Citizen SOS Feed', icon: Activity },
     { id: 'risk', label: 'Risk Projections', icon: TrendingUp },
@@ -715,43 +798,47 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
         {/* Navigation */}
         <nav className="border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-black font-mono text-sm tracking-tighter">
+            <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-black font-mono text-sm tracking-tighter flex-shrink-0">
                 RQ
               </div>
-              <span className="font-bold tracking-wider text-sm font-mono uppercase bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
-                TSDMA ResQAI
+              <span className="font-bold tracking-wider text-xs sm:text-sm font-mono uppercase bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent whitespace-nowrap">
+                <span className="hidden sm:inline">TSDMA ResQAI</span>
+                <span className="inline sm:hidden">ResQAI</span>
               </span>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1.5 sm:space-x-3 flex-shrink-0">
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-lg bg-zinc-900 border border-white/10 hover:border-cyan-500/50 text-zinc-300 hover:text-white transition flex items-center justify-center cursor-pointer"
+                className="p-1.5 sm:p-2 rounded-lg bg-zinc-900 border border-white/10 hover:border-cyan-500/50 text-zinc-300 hover:text-white transition flex items-center justify-center cursor-pointer flex-shrink-0"
                 title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
               >
-                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-400" />}
+                {theme === 'dark' ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />}
               </button>
               <button
                 onClick={() => {
                   setCurrentView('citizen');
                   addNotification('SOS CHANNEL INITIATED: Redirecting to emergency console.', 'info');
                 }}
-                className="px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-500/50 hover:bg-red-900/40 text-red-400 hover:text-red-300 transition text-xs font-mono font-bold flex items-center gap-1 cursor-pointer animate-pulse"
+                className="px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-lg bg-red-950/40 border border-red-500/50 hover:bg-red-900/40 text-red-400 hover:text-red-300 transition text-[10px] sm:text-xs font-mono font-bold flex items-center gap-1 cursor-pointer animate-pulse flex-shrink-0"
               >
-                🚨 SOS ASSISTANCE
+                <span>🚨</span>
+                <span className="hidden sm:inline">SOS ASSISTANCE</span>
               </button>
               <button
                 onClick={() => setCurrentView('citizen')}
-                className="px-3 py-1.5 rounded-lg border border-cyan-500/30 text-cyan-400 hover:bg-cyan-950/30 transition text-xs font-mono font-bold flex items-center gap-1"
+                className="px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-lg border border-cyan-500/30 text-cyan-400 hover:bg-cyan-950/30 transition text-[10px] sm:text-xs font-mono font-bold flex items-center gap-1 flex-shrink-0"
               >
-                👤 Citizen Portal
+                <span>👤</span>
+                <span className="hidden sm:inline">Citizen Portal</span>
               </button>
               <button
                 onClick={() => setCurrentView('admin')}
-                className="px-3 py-1.5 rounded-lg bg-cyan-600 text-black hover:bg-cyan-500 transition text-xs font-mono font-bold flex items-center gap-1"
+                className="px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-lg bg-cyan-600 text-black hover:bg-cyan-500 transition text-[10px] sm:text-xs font-mono font-bold flex items-center gap-1 flex-shrink-0"
               >
-                🛡️ EOC Admin Dashboard
+                <span>🛡️</span>
+                <span className="hidden sm:inline">EOC Admin</span>
               </button>
             </div>
           </div>
@@ -997,37 +1084,42 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
         {/* Navigation */}
         <nav className="border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center font-bold text-black font-mono text-sm tracking-tighter">
+            <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center font-bold text-black font-mono text-sm tracking-tighter flex-shrink-0">
                 RQ
               </div>
-              <span className="font-bold tracking-wider text-sm font-mono uppercase bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
-                TSDMA Citizen Safety Portal
+              <span className="font-bold tracking-wider text-xs sm:text-sm font-mono uppercase bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent whitespace-nowrap">
+                <span className="hidden sm:inline">TSDMA Citizen Safety Portal</span>
+                <span className="inline sm:hidden">ResQAI Citizen</span>
               </span>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/30 text-emerald-400 font-mono text-[9px] font-bold uppercase tracking-widest animate-pulse">
+            <div className="flex items-center space-x-1.5 sm:space-x-3 flex-shrink-0">
+              <span className="hidden md:inline px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/30 text-emerald-400 font-mono text-[9px] font-bold uppercase tracking-widest animate-pulse whitespace-nowrap">
                 Live Public Channel
               </span>
+              <span className="inline md:hidden w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-400 shadow-[0_0_8px_#10b981] animate-pulse flex-shrink-0" title="Live Public Channel"></span>
+              
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-lg bg-zinc-900 border border-white/10 hover:border-cyan-500/50 text-zinc-300 hover:text-white transition flex items-center justify-center cursor-pointer"
+                className="p-1.5 sm:p-2 rounded-lg bg-zinc-900 border border-white/10 hover:border-cyan-500/50 text-zinc-300 hover:text-white transition flex items-center justify-center cursor-pointer flex-shrink-0"
                 title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
               >
-                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-400" />}
+                {theme === 'dark' ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" />}
               </button>
               <button
                 onClick={() => setCurrentView('landing')}
-                className="px-3 py-1.5 rounded-lg border border-white/5 hover:border-white/20 text-zinc-400 hover:text-white transition text-xs font-mono"
+                className="px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-lg border border-white/5 hover:border-white/20 text-zinc-400 hover:text-white transition text-[10px] sm:text-xs font-mono flex items-center gap-1 cursor-pointer flex-shrink-0"
               >
-                Back to Home
+                <span>🏠</span>
+                <span className="hidden sm:inline">Back to Home</span>
               </button>
               <button
                 onClick={() => setCurrentView('admin')}
-                className="px-3 py-1.5 rounded-lg bg-cyan-600 text-black hover:bg-cyan-500 transition text-xs font-mono font-bold"
+                className="px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-lg bg-cyan-600 text-black hover:bg-cyan-500 transition text-[10px] sm:text-xs font-mono font-bold flex items-center gap-1 cursor-pointer flex-shrink-0"
               >
-                🛡️ Admin Panel
+                <span>🛡️</span>
+                <span className="hidden sm:inline">Admin Panel</span>
               </button>
             </div>
           </div>
@@ -1645,6 +1737,7 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
           storageKey="tsdma-eoc-resizable-panel-shared"
           title={
             activeConsoleTab === 'dispatch' ? 'Tactical Logistics' :
+            activeConsoleTab === 'archive' ? 'Saved Locations Archive' :
             activeConsoleTab === 'analyzer' ? 'AI Incident Scanner' :
             activeConsoleTab === 'sos' ? 'DistressSOS Portal' :
             activeConsoleTab === 'risk' ? 'Timeline Forecast' :
@@ -1653,6 +1746,7 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
           }
           subtitle={
             activeConsoleTab === 'dispatch' ? 'Dispatch ambulances, engines & SDRF squads' :
+            activeConsoleTab === 'archive' ? 'Permanent spatial registry, historical coordinates & audit files' :
             activeConsoleTab === 'analyzer' ? 'Ingest scans & weather briefs' :
             activeConsoleTab === 'sos' ? 'Citizens distress broadcasts' :
             activeConsoleTab === 'risk' ? 'Musi flood water spread metrics' :
@@ -1686,6 +1780,21 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
               selectedCategory={selectedCategory}
               onChangeCategory={setSelectedCategory}
               onUpdateIncident={handleUpdateIncident}
+            />
+          )}
+
+          {activeConsoleTab === 'archive' && (
+            <SavedLocationsArchive
+              incidents={incidents}
+              selectedIncident={selectedIncident}
+              onSelectIncident={(inc) => {
+                setSelectedIncident(inc);
+                setSelectedVehicle(null);
+                if (inc) {
+                  addNotification(`[LOCATION REGISTRY] Centered on ${inc.type} at LAT ${inc.location.lat.toFixed(4)}, LNG ${inc.location.lng.toFixed(4)}.`, 'info');
+                }
+              }}
+              addNotification={addNotification}
             />
           )}
 

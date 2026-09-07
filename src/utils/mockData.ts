@@ -98,6 +98,12 @@ export interface Incident {
     recommendedDepartment: string;
     reportSummary: string;
   };
+
+  // Saved location archive & resolution fields
+  resolvedAt?: string;
+  resolutionSummary?: string;
+  addressContext?: string;
+  shareUrl?: string;
 }
 
 export type VehicleType =

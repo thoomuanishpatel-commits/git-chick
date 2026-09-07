@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ResQAI</string>
+    <string name="title_activity_main">ResQAI</string>
+    <string name="package_name">com.resqai.app</string>
+    <string name="custom_url_scheme">com.resqai.app</string>
+</resources>

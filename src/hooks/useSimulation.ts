@@ -82,8 +82,46 @@ export interface AlertNotification {
   read: boolean;
 }
 
+export const INCIDENTS_STORAGE_KEY = 'resqai_disaster_registry_v1';
+
+export function loadStoredIncidents(): Incident[] {
+  if (typeof window === 'undefined') return defaultIncidents;
+  try {
+    const raw = localStorage.getItem(INCIDENTS_STORAGE_KEY);
+    if (!raw) return defaultIncidents;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return defaultIncidents;
+    const userIds = new Set(parsed.map((i: Incident) => i.id));
+    const missingDefaults = defaultIncidents.filter((d) => !userIds.has(d.id));
+    return [...parsed, ...missingDefaults] as Incident[];
+  } catch (e) {
+    console.error('Failed to load stored incidents:', e);
+    return defaultIncidents;
+  }
+}
+
+export function persistIncidents(incidents: Incident[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(INCIDENTS_STORAGE_KEY, JSON.stringify(incidents));
+  } catch (e) {
+    console.error('Failed to persist incidents to storage:', e);
+  }
+}
+
 export function useSimulation() {
   const [incidents, setIncidents] = useState<Incident[]>(defaultIncidents);
+
+  // Load persisted incidents on mount (client-side)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = loadStoredIncidents();
+      if (stored && stored.length > 0) {
+        setIncidents(stored);
+      }
+    }
+  }, []);
+
   const [vehicles, setVehicles] = useState<Vehicle[]>(() => generateInitialFleet());
   const [shelters, setShelters] = useState<Shelter[]>(defaultShelters);
   const [hospitals, setHospitals] = useState<Hospital[]>(defaultHospitals);
@@ -261,6 +299,47 @@ export function useSimulation() {
     };
   }, [addNotification]);
 
+  // Real-time cross-tab browser synchronization via BroadcastChannel
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
+    const bc = new BroadcastChannel('resqai_disaster_sync');
+
+    bc.onmessage = (event) => {
+      const { type, payload } = event.data || {};
+      if (type === 'INCIDENT_ADDED' && payload) {
+        setIncidents((prev) => {
+          if (prev.some((i) => i.id === payload.id)) return prev;
+          addNotification(
+            `NETWORK INTAKE: New disaster (${payload.type}) reported at coordinates ${payload.location.lat.toFixed(3)}, ${payload.location.lng.toFixed(3)}.`,
+            'emergency'
+          );
+          return [payload, ...prev];
+        });
+      } else if ((type === 'INCIDENT_UPDATED' || type === 'INCIDENT_RESOLVED') && payload) {
+        setIncidents((prev) =>
+          prev.map((i) => (i.id === payload.id ? { ...i, ...payload } : i))
+        );
+        if (type === 'INCIDENT_RESOLVED') {
+          addNotification(
+            `NETWORK NOTICE: Emergency ${payload.type} marked RESOLVED. Archived in saved location registry.`,
+            'success'
+          );
+        }
+      }
+    };
+
+    return () => {
+      bc.close();
+    };
+  }, [addNotification]);
+
+  // Keep localStorage automatically synced whenever incidents change
+  useEffect(() => {
+    if (incidents && incidents.length > 0) {
+      persistIncidents(incidents);
+    }
+  }, [incidents]);
+
     // Dispatch a vehicle to an incident
     const dispatchVehicle = useCallback((vehicleId: string, incidentId: string) => {
       const incident = incidents.find((i) => i.id === incidentId);
@@ -320,11 +399,17 @@ export function useSimulation() {
 
     // Add custom incident (Citizen SOS or user simulated)
     const addIncident = useCallback((incident: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status'] }) => {
+      const safeId = incident.type === 'POLICE_SOS' 
+        ? `sos-${Date.now()}` 
+        : `inc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+
       const newInc: Incident = {
         ...incident,
-        id: `inc-${Date.now().toString().slice(-3)}`,
+        id: safeId,
         status: incident.type === 'POLICE_SOS' ? 'SOS Sent' : (incident.status || 'Pending'),
-        reportedAt: new Date().toTimeString().split(' ')[0],
+        reportedAt: timeStr,
+        addressContext: incident.addressContext || `LAT ${incident.location.lat.toFixed(4)}, LNG ${incident.location.lng.toFixed(4)}`,
       };
 
       if (newInc.type === 'POLICE_SOS') {
@@ -379,8 +464,21 @@ export function useSimulation() {
         }
       }
 
-      setIncidents((prev) => [newInc, ...prev]);
+      setIncidents((prev) => {
+        const updated = [newInc, ...prev];
+        persistIncidents(updated);
+        return updated;
+      });
       addNotification(`NEW EMERGENCY: ${newInc.type} reported by ${newInc.reporter}. Severity Score: ${newInc.severity}/100.`, 'emergency');
+
+      // Cross-tab real-time broadcast
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        try {
+          const ch = new BroadcastChannel('resqai_disaster_sync');
+          ch.postMessage({ type: 'INCIDENT_ADDED', payload: newInc });
+          ch.close();
+        } catch (e) {}
+      }
 
       // Sync creation to Supabase
       if (isSupabaseConfigured && supabase) {
@@ -452,6 +550,30 @@ export function useSimulation() {
 
     return newInc;
   }, [autopilotEnabled, dispatchVehicle, addNotification, hazards, roadClosures, incidents, vehicles, setVehicles]);
+
+  // Update an incident (persisted locally and synced)
+  const updateIncident = useCallback((updated: Incident) => {
+    setIncidents((prev) => {
+      const next = prev.map((i) => (i.id === updated.id ? updated : i));
+      persistIncidents(next);
+      return next;
+    });
+
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const ch = new BroadcastChannel('resqai_disaster_sync');
+        ch.postMessage({
+          type: updated.status === 'Resolved' ? 'INCIDENT_RESOLVED' : 'INCIDENT_UPDATED',
+          payload: updated,
+        });
+        ch.close();
+      } catch (e) {}
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.from('incidents').update(updated).eq('id', updated.id).then();
+    }
+  }, []);
 
   // Clear notifications
   const clearNotifications = useCallback(() => {
@@ -696,12 +818,25 @@ export function useSimulation() {
                       }).eq('activeIncidentId', inc.id).then();
                     }
 
-                    return {
+                    const resolveTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+                    const resolvedInc: Incident = {
                       ...inc,
                       status: 'Resolved',
                       trappedCount: 0,
-                      casualtyEstimate: Math.max(0, inc.casualtyEstimate - 2) // saved lives
+                      casualtyEstimate: Math.max(0, inc.casualtyEstimate - 2), // saved lives
+                      resolvedAt: resolveTime,
+                      resolutionSummary: `Operation concluded at ${resolveTime}. Hazard neutralized, victims evacuated to emergency shelter.`
                     };
+
+                    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+                      try {
+                        const ch = new BroadcastChannel('resqai_disaster_sync');
+                        ch.postMessage({ type: 'INCIDENT_RESOLVED', payload: resolvedInc });
+                        ch.close();
+                      } catch (e) {}
+                    }
+
+                    return resolvedInc;
                   } else {
                     // Sync de-escalation progress to Supabase
                     if (isSupabaseConfigured && supabase) {
@@ -747,6 +882,7 @@ export function useSimulation() {
     setAutopilotEnabled,
     dispatchVehicle,
     addIncident,
+    updateIncident,
     clearNotifications,
     markNotificationsRead,
     toggleRoadClosure,
