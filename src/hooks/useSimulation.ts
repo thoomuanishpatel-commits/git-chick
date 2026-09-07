@@ -685,6 +685,28 @@ export function useSimulation() {
     }
   }, []);
 
+  // Explicit refresh of incidents pathway without reloading full webpage
+  const refreshIncidents = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/incidents?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && Array.isArray(data.incidents)) {
+        persistIncidents(data.incidents);
+        setIncidents(data.incidents);
+        addNotification(`PATHWAY SYNCED: Reloaded ${data.incidents.length} incidents from server.`, 'success');
+      }
+    } catch (err) {
+      console.error('refreshIncidents error:', err);
+    }
+  }, [addNotification]);
+
   // Clear notifications
   const clearNotifications = useCallback(() => {
     setNotifications([]);
@@ -1010,5 +1032,6 @@ export function useSimulation() {
     markNotificationsRead,
     toggleRoadClosure,
     addNotification,
+    refreshIncidents,
   };
 }

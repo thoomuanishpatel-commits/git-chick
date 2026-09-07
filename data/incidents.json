@@ -2,6 +2,93 @@
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
+    "severity": 71,
+    "location": {
+      "lat": 17.37793787482389,
+      "lng": 78.48032255178353
+    },
+    "addressContext": "Auto-Locked: Hyderabad Sector (17.3779, 78.4803)",
+    "description": "CITIZEN SOS REPORT: Vammo. (Location: Auto-Locked: Hyderabad Sector (17.3779, 78.4803))",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": false,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Active",
+    "id": "inc-1788803345966-04sq",
+    "reportedAt": "23:19:05",
+    "isUserReported": true,
+    "starred": true,
+    "assignedVehicleId": "veh-452",
+    "resolvedAt": "23:20:04",
+    "resolutionSummary": "Operation concluded at 23:20:04. Hazard neutralized, victims evacuated to emergency shelter."
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
+    "severity": 71,
+    "location": {
+      "lat": 17.38097749815443,
+      "lng": 78.49233723081198
+    },
+    "addressContext": "Auto-Locked: Hyderabad Sector (17.3810, 78.4923)",
+    "description": "CITIZEN SOS REPORT: Phone check. (Location: Auto-Locked: Hyderabad Sector (17.3810, 78.4923))",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Resolved",
+    "id": "inc-1788803327433-p8qb",
+    "reportedAt": "23:18:47",
+    "isUserReported": true,
+    "starred": true,
+    "assignedVehicleId": "veh-101",
+    "resolvedAt": "23:18:56",
+    "resolutionSummary": "Operation concluded at 23:18:56. Hazard neutralized, victims evacuated to emergency shelter."
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
+    "severity": 70,
+    "location": {
+      "lat": 17.387713941642986,
+      "lng": 78.48434671622823
+    },
+    "addressContext": "Auto-Locked: Hyderabad Sector (17.3877, 78.4843)",
+    "description": "CITIZEN SOS REPORT: Phone. (Location: Auto-Locked: Hyderabad Sector (17.3877, 78.4843))",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Resolved",
+    "id": "inc-1788803263898-1vdi",
+    "reportedAt": "23:17:43",
+    "isUserReported": true,
+    "starred": true,
+    "assignedVehicleId": "veh-14",
+    "resolvedAt": "23:18:36",
+    "resolutionSummary": "Operation concluded at 23:18:36. Hazard neutralized, victims evacuated to emergency shelter."
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
     "severity": 79,
     "location": {
       "lat": 17.47218125973849,
@@ -45,17 +132,17 @@
       "Ambulance"
     ],
     "reporter": "Citizen Portal",
-    "needsSOSValidation": true,
+    "needsSOSValidation": false,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Dispatched",
+    "status": "Resolved",
     "id": "inc-1788801149815-wbk2",
     "reportedAt": "22:42:29",
     "isUserReported": true,
     "starred": true,
-    "assignedVehicleId": "veh-361",
-    "resolvedAt": "23:15:00",
-    "resolutionSummary": "Operation concluded at 23:15:00. Hazard neutralized, victims evacuated to emergency shelter."
+    "assignedVehicleId": "veh-288",
+    "resolvedAt": "23:16:53",
+    "resolutionSummary": "Operation concluded at 23:16:53. Hazard neutralized, victims evacuated to emergency shelter."
   },
   {
     "type": "Rescue Request",
@@ -67,21 +154,24 @@
     },
     "addressContext": "Auto-Locked: 17.47222, 78.42263",
     "description": "CITIZEN SOS REPORT: tt. (Location: Auto-Locked: 17.47222, 78.42263)",
-    "casualtyEstimate": 2,
-    "trappedCount": 1,
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
     "requiredResources": [
       "Urban Search & Rescue Unit",
       "Ambulance"
     ],
     "reporter": "Citizen Portal",
-    "needsSOSValidation": true,
+    "needsSOSValidation": false,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Pending",
+    "status": "Dispatched",
     "id": "inc-1788800739323-8ybj",
     "reportedAt": "22:35:39",
     "isUserReported": true,
-    "starred": true
+    "starred": true,
+    "assignedVehicleId": "veh-19",
+    "resolvedAt": "23:19:48",
+    "resolutionSummary": "Operation concluded at 23:19:48. Hazard neutralized, victims evacuated to emergency shelter."
   },
   {
     "type": "Rescue Request",
@@ -100,14 +190,15 @@
       "Ambulance"
     ],
     "reporter": "Citizen Portal",
-    "needsSOSValidation": true,
+    "needsSOSValidation": false,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Pending",
+    "status": "Resolved",
     "id": "inc-1788800698490-8zrb",
     "reportedAt": "22:34:58",
     "isUserReported": true,
-    "starred": true
+    "starred": true,
+    "assignedVehicleId": "veh-505"
   },
   {
     "type": "Rescue Request",
@@ -125,15 +216,16 @@
       "Ambulance"
     ],
     "reporter": "Citizen Portal",
-    "needsSOSValidation": true,
+    "needsSOSValidation": false,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Pending",
+    "status": "Active",
     "id": "inc-1788800253148-s0mm",
     "reportedAt": "22:27:33",
     "addressContext": "LAT 17.3825, LNG 78.4779",
     "isUserReported": true,
-    "starred": true
+    "starred": true,
+    "assignedVehicleId": "veh-156"
   },
   {
     "type": "Rescue Request",
@@ -144,22 +236,25 @@
       "lng": 78.4226140291842
     },
     "description": "CITIZEN SOS REPORT: eee. (Sub-location context: Live browser coordinates locked)",
-    "casualtyEstimate": 2,
-    "trappedCount": 1,
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
     "requiredResources": [
       "Urban Search & Rescue Unit",
       "Ambulance"
     ],
     "reporter": "Citizen Portal",
-    "needsSOSValidation": true,
+    "needsSOSValidation": false,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Pending",
+    "status": "Dispatched",
     "id": "inc-1788800066565-4onj",
     "reportedAt": "22:24:26",
     "addressContext": "LAT 17.4722, LNG 78.4226",
     "isUserReported": true,
-    "starred": true
+    "starred": true,
+    "assignedVehicleId": "veh-19",
+    "resolvedAt": "23:18:37",
+    "resolutionSummary": "Operation concluded at 23:18:37. Hazard neutralized, victims evacuated to emergency shelter."
   },
   {
     "type": "Rescue Request",
@@ -170,22 +265,25 @@
       "lng": 78.48302592930101
     },
     "description": "CITIZEN SOS REPORT: 12345. (Sub-location context: Unspecified)",
-    "casualtyEstimate": 2,
-    "trappedCount": 1,
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
     "requiredResources": [
       "Urban Search & Rescue Unit",
       "Ambulance"
     ],
     "reporter": "Citizen Portal",
-    "needsSOSValidation": true,
+    "needsSOSValidation": false,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Pending",
+    "status": "Resolved",
     "id": "inc-1788800040215-b9ut",
     "reportedAt": "22:24:00",
     "addressContext": "LAT 17.3881, LNG 78.4830",
     "isUserReported": true,
-    "starred": true
+    "starred": true,
+    "assignedVehicleId": "veh-265",
+    "resolvedAt": "23:18:44",
+    "resolutionSummary": "Operation concluded at 23:18:44. Hazard neutralized, victims evacuated to emergency shelter."
   },
   {
     "type": "Rescue Request",
@@ -203,10 +301,10 @@
       "Ambulance"
     ],
     "reporter": "Citizen Portal",
-    "needsSOSValidation": true,
+    "needsSOSValidation": false,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Pending",
+    "status": "Resolved",
     "id": "inc-1788800014605-eb64",
     "reportedAt": "22:23:34",
     "addressContext": "LAT 17.4722, LNG 78.4226",
@@ -231,7 +329,8 @@
     "starred": true,
     "requiredResources": [
       "First Responder Unit"
-    ]
+    ],
+    "assignedVehicleId": "veh-196"
   },
   {
     "id": "inc-101",

@@ -80,9 +80,49 @@ const AnalyticsDashboard = dynamic(() => import('../components/AnalyticsDashboar
     </div>
   ),
 });
-function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
+export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?: boolean; initialView?: 'landing' | 'admin' | 'citizen' }) {
   const auth = useAuth();
-  const [currentView, setCurrentView] = useState<'landing' | 'admin' | 'citizen'>('landing');
+  const [currentView, setViewInternal] = useState<'landing' | 'admin' | 'citizen'>(() => {
+    if (initialView) return initialView;
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.startsWith('/admin')) return 'admin';
+      if (path.startsWith('/citizen')) return 'citizen';
+      const param = new URLSearchParams(window.location.search).get('view');
+      if (param === 'admin') return 'admin';
+      if (param === 'citizen') return 'citizen';
+      const saved = sessionStorage.getItem('resqai_active_pathway');
+      if (saved === 'admin' || saved === 'citizen') return saved;
+    }
+    return 'landing';
+  });
+
+  const setCurrentView = useCallback((view: 'landing' | 'admin' | 'citizen') => {
+    setViewInternal(view);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('resqai_active_pathway', view);
+        const newPath = view === 'admin' ? '/admin' : view === 'citizen' ? '/citizen' : '/';
+        if (window.location.pathname !== newPath) {
+          window.history.pushState({ view }, '', newPath);
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  // Listen for browser Back/Forward navigation
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path.startsWith('/admin')) setViewInternal('admin');
+      else if (path.startsWith('/citizen')) setViewInternal('citizen');
+      else setViewInternal('landing');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const [pipelineVisible, setPipelineVisible] = useState(false);
   const [pipelineStep, setPipelineStep] = useState(0.0); // actual animated value
   const targetStepRef = useRef(0.0); // target goal value
@@ -219,7 +259,8 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
     updateIncident,
     clearNotifications,
     toggleRoadClosure,
-    addNotification
+    addNotification,
+    refreshIncidents,
   } = useSimulation();
 
   const handleAddIncident = useCallback((incident: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status'] }) => {
@@ -1793,6 +1834,7 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
               selectedCategory={selectedCategory}
               onChangeCategory={setSelectedCategory}
               onUpdateIncident={handleUpdateIncident}
+              onRefreshIncidents={refreshIncidents}
             />
           )}
 
@@ -2381,15 +2423,15 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
   );
 }
 
-export default function HomePortal() {
+export default function HomePortal({ defaultView }: { defaultView?: 'landing' | 'admin' | 'citizen' }) {
   return (
     <AuthProvider>
-      <HomePortalContent />
+      <HomePortalContent defaultView={defaultView} />
     </AuthProvider>
   );
 }
 
-function HomePortalContent() {
+function HomePortalContent({ defaultView }: { defaultView?: 'landing' | 'admin' | 'citizen' }) {
   const auth = useAuth();
   const [initStep, setInitStep] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -2443,7 +2485,7 @@ function HomePortalContent() {
 
   // If ready or continuing in demo mode, show main EOC app
   if ((initStep === 3 && !auth.loading) || isDemoMode) {
-    return <HomeDashboard isDemoMode={isDemoMode} />;
+    return <HomeDashboard isDemoMode={isDemoMode} initialView={defaultView} />;
   }
 
   // Connection Unavailable screen

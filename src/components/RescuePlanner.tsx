@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Truck, Compass, Settings, Battery, ShieldCheck, Package, AlertTriangle, MapPin, ExternalLink, Copy, Star } from 'lucide-react';
+import { Truck, Compass, Settings, Battery, ShieldCheck, Package, AlertTriangle, MapPin, ExternalLink, Copy, Star, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Incident, Vehicle, Warehouse, Shelter, Hospital } from '../utils/mockData';
 import { recommendVehiclesForIncident, rankWarehousesForSupply } from '../utils/routing';
 
@@ -23,6 +23,7 @@ interface RescuePlannerProps {
   selectedCategory?: string;
   onChangeCategory?: (category: string) => void;
   onUpdateIncident?: (incident: Incident) => void;
+  onRefreshIncidents?: () => Promise<void> | void;
 }
 
 export default function RescuePlanner({
@@ -43,8 +44,54 @@ export default function RescuePlanner({
   selectedCategory = 'All',
   onChangeCategory,
   onUpdateIncident,
+  onRefreshIncidents,
 }: RescuePlannerProps) {
   const [plannerTab, setPlannerTab] = useState<'dispatch' | 'fleet' | 'supplies'>('dispatch');
+  const [isRefreshingPathway, setIsRefreshingPathway] = useState(false);
+
+  // Quick Solve handler for active incidents
+  const handleSolveIncident = (inc: Incident) => {
+    const resolveTime = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const solved: Incident = {
+      ...inc,
+      status: 'Resolved',
+      trappedCount: 0,
+      casualtyEstimate: Math.max(0, (inc.casualtyEstimate || 0) - 2),
+      resolvedAt: resolveTime,
+      resolutionSummary: `Resolved by EOC Operator at ${resolveTime}. Threat neutralized, area secured.`
+    };
+
+    onUpdateIncident?.(solved);
+
+    // Sync resolution to Server API so all devices update in real time
+    fetch('/api/incidents', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(solved)
+    }).catch(err => console.error('Solve incident error:', err));
+
+    addNotification(`INCIDENT SOLVED: Emergency ${inc.type} marked as Resolved and moved to Archive.`, 'success');
+  };
+
+  // Refresh only this incident pathway without refreshing full website
+  const handleRefreshPathway = async () => {
+    if (isRefreshingPathway) return;
+    setIsRefreshingPathway(true);
+    try {
+      if (onRefreshIncidents) {
+        await onRefreshIncidents();
+      } else {
+        const res = await fetch(`/api/incidents?_t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          addNotification('PATHWAY SYNCED: Incidents refreshed from server registry.', 'success');
+        }
+      }
+    } catch (err) {
+      console.error('Refresh pathway error:', err);
+    } finally {
+      setTimeout(() => setIsRefreshingPathway(false), 500);
+    }
+  };
 
   // Supply states
   const [selectedShelterId, setSelectedShelterId] = useState('');
@@ -176,7 +223,16 @@ export default function RescuePlanner({
                     {sortedIncidents.length}
                   </span>
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">LIVE PRIORITY QUEUE</span>
+                <button
+                  type="button"
+                  onClick={handleRefreshPathway}
+                  disabled={isRefreshingPathway}
+                  className="flex items-center gap-1.5 text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 hover:text-white transition cursor-pointer shadow-sm disabled:opacity-50"
+                  title="Refresh only this incident pathway without reloading the whole page"
+                >
+                  <RefreshCw className={`w-2.5 h-2.5 ${isRefreshingPathway ? 'animate-spin text-cyan-400' : ''}`} />
+                  <span>{isRefreshingPathway ? 'Syncing...' : 'Sync Pathway'}</span>
+                </button>
               </div>
               <div className="mb-2 px-1">
                 <select
@@ -211,10 +267,12 @@ export default function RescuePlanner({
                       const isSelected = selectedIncident?.id === inc.id;
                       const isCitizenReport = inc.isUserReported || inc.starred;
                       return (
-                        <button
+                        <div
                           key={inc.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => onSelectIncident(inc)}
-                          className={`w-full text-left p-3 rounded-lg border font-mono transition flex justify-between items-center relative overflow-hidden ${
+                          className={`w-full text-left p-3 rounded-lg border font-mono transition flex justify-between items-start relative overflow-hidden cursor-pointer ${
                             isSelected
                               ? 'bg-cyan-950/40 border-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.18)] ring-1 ring-cyan-400/30'
                               : isCitizenReport
@@ -237,22 +295,49 @@ export default function RescuePlanner({
                               AI Activated
                             </div>
                           ) : null}
-                          <div className="space-y-1">
+
+                          <div className="space-y-1.5 flex-1 pr-3 min-w-0">
                             <div className="flex items-center space-x-2">
                               {isCitizenReport ? (
-                                <Star className="w-3 h-3 text-amber-400 fill-amber-400 animate-pulse" />
+                                <Star className="w-3 h-3 text-amber-400 fill-amber-400 animate-pulse flex-shrink-0" />
                               ) : (
-                                <span className="w-2 h-2 rounded-full bg-emergency-red animate-pulse"></span>
+                                <span className="w-2 h-2 rounded-full bg-emergency-red animate-pulse flex-shrink-0"></span>
                               )}
-                              <span className="text-xs font-bold uppercase text-white">{inc.type}</span>
+                              <span className="text-xs font-bold uppercase text-white truncate">{inc.type}</span>
                             </div>
-                            <p className="text-[10px] text-slate-400 truncate max-w-xs">{inc.description}</p>
+
+                            {/* HIGHLIGHT ONLY IF SENT BY USER. IF DEFAULT DATA, DO NOT HIGHLIGHT */}
+                            {isCitizenReport ? (
+                              <div className="p-2 rounded-md bg-amber-500/20 border border-amber-400/50 text-amber-200 text-[10px] leading-snug font-medium shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                                <span className="text-[7.5px] bg-amber-500 text-black font-black px-1 py-0.2 rounded uppercase mr-1.5 tracking-wider inline-block">
+                                  USER REPORT
+                                </span>
+                                <span className="text-amber-100 font-semibold">{inc.description}</span>
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-slate-400 truncate max-w-xs">{inc.description}</p>
+                            )}
                           </div>
-                          <div className="text-right space-y-0.5">
+
+                          <div className="text-right space-y-1 flex flex-col items-end flex-shrink-0">
                             <span className="text-orange-400 text-xs font-extrabold">{inc.severity}%</span>
                             <div className="text-[9px] px-1 bg-white/10 rounded text-slate-400 uppercase">{inc.status}</div>
+
+                            {/* Small button to solve/resolve this incident */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSolveIncident(inc);
+                              }}
+                              className="mt-1 px-2 py-0.5 rounded bg-emerald-950/90 hover:bg-emerald-800 border border-emerald-500/60 text-emerald-300 hover:text-white font-bold text-[8.5px] uppercase tracking-wider flex items-center gap-1 transition shadow-[0_0_8px_rgba(16,185,129,0.25)] cursor-pointer active:scale-95"
+                              title="Click to solve this emergency issue immediately"
+                            >
+                              <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                              <span>Solve</span>
+                            </button>
                           </div>
-                        </button>
+                        </div>
                       );
                     })
                 )}
@@ -286,7 +371,34 @@ export default function RescuePlanner({
                           {selectedIncident.category}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-300 italic">&quot;{selectedIncident.description}&quot;</p>
+
+                      {/* Highlight description ONLY if sent by user; if default data, do not highlight */}
+                      {(selectedIncident.isUserReported || selectedIncident.starred) ? (
+                        <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.25)] space-y-1 my-1">
+                          <div className="flex items-center justify-between text-[8.5px] font-bold uppercase tracking-wider text-amber-400">
+                            <span className="flex items-center gap-1">
+                              <Star className="w-3 h-3 fill-amber-400" />
+                              CITIZEN USER TRANSMISSION DESCRIPTION
+                            </span>
+                            <span className="text-[7.5px] px-1.5 py-0.2 rounded bg-amber-500 text-black font-black">HIGH PRIORITY</span>
+                          </div>
+                          <p className="text-xs text-amber-100 font-semibold leading-relaxed">&quot;{selectedIncident.description}&quot;</p>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-300 italic">&quot;{selectedIncident.description}&quot;</p>
+                      )}
+
+                      {/* Quick Mark Solved Button inside Detail View */}
+                      {selectedIncident.status !== 'Resolved' && (
+                        <button
+                          type="button"
+                          onClick={() => handleSolveIncident(selectedIncident)}
+                          className="w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-black font-extrabold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-lg hover:shadow-emerald-500/30 cursor-pointer active:scale-98 mt-1"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Mark Incident as Solved (Resolve Issue)</span>
+                        </button>
+                      )}
                       
                       {selectedIncident.photoBase64 && (
                         <div className="mt-2 space-y-1">
