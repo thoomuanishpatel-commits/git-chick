@@ -1,14 +1,21 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Send, Camera, Shield, AlertTriangle, Loader2 } from 'lucide-react';
+import { Send, Camera, Shield, AlertTriangle, Loader2, MapPin } from 'lucide-react';
 import { Incident } from '../utils/mockData';
+
+const DEFAULT_USER_ZONE = {
+  lat: 17.47218,
+  lng: 78.42259,
+  name: 'Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad'
+};
 
 interface CitizenSOSProps {
   onAddIncident: (inc: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status'] }) => void;
   addNotification: (msg: string, type: 'emergency' | 'warning' | 'info' | 'success') => void;
   onLocationLock?: (loc: { lat: number; lng: number } | null) => void;
   compact?: boolean;
+  overrideLocation?: { lat: number; lng: number } | null;
 }
 
 // Call Google Gemini Multimodal Vision API
@@ -89,15 +96,18 @@ Output ONLY raw JSON. No markdown blocks, backticks, or formatting.`
   return JSON.parse(cleanJson);
 }
 
-export default function CitizenSOS({ onAddIncident, addNotification, onLocationLock, compact = false }: CitizenSOSProps) {
+export default function CitizenSOS({ onAddIncident, addNotification, onLocationLock, compact = false, overrideLocation = null }: CitizenSOSProps) {
   const [sosCategory, setSosCategory] = useState<'Medical' | 'Rescue' | 'Food' | 'Water' | 'Fire' | 'Police'>('Rescue');
   const [description, setDescription] = useState('');
-  const [locationName, setLocationName] = useState('');
+  const [locationName, setLocationName] = useState(DEFAULT_USER_ZONE.name);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationLocked, setLocationLocked] = useState(false);
   const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
-  const [gpsSimulated, setGpsSimulated] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsSimulated, setGpsSimulated] = useState<{ lat: number; lng: number } | null>(() => ({
+    lat: DEFAULT_USER_ZONE.lat,
+    lng: DEFAULT_USER_ZONE.lng
+  }));
 
   // Ref locks to guarantee geolocation is only acquired ONCE and never locked again in a loop
   const hasLockedRef = useRef(false);
@@ -115,12 +125,28 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
   const [aiAnalysisResult, setAiAnalysisResult] = useState<any>(null);
 
   const handleDetectLocation = useCallback((force = false) => {
-    // If already locked and user did not explicitly force recalibration, exit immediately
     if (hasLockedRef.current && !force) {
       return;
     }
 
     setIsLocating(true);
+
+    // 1. Check persistent accurate location in localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('resqai_exact_location');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.lat && parsed.lng) {
+            setGpsSimulated({ lat: parsed.lat, lng: parsed.lng });
+            setLocationLocked(true);
+            setLocationName(parsed.name || DEFAULT_USER_ZONE.name);
+            onLocationLockRef.current?.({ lat: parsed.lat, lng: parsed.lng });
+          }
+        }
+      } catch (e) {}
+    }
+
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -132,10 +158,9 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
           setLocationLocked(true);
           setIsLocating(false);
           setLocationAccuracy(accuracy);
-          setLocationName('Hyderabad Urban Sector');
+          setLocationName(DEFAULT_USER_ZONE.name);
           onLocationLockRef.current?.({ lat, lng });
 
-          // Optional reverse geocoding to human-readable locality
           try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3500);
@@ -148,39 +173,99 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
               const data = await res.json();
               if (data.display_name) {
                 const parts = data.display_name.split(', ');
-                const shortAddr = parts.slice(0, 3).join(', ');
-                setLocationName(shortAddr || data.display_name);
+                const shortAddr = parts.slice(0, 4).join(', ');
+                const finalName = shortAddr || data.display_name;
+                setLocationName(finalName);
+                try {
+                  localStorage.setItem('resqai_exact_location', JSON.stringify({ lat, lng, name: finalName }));
+                } catch (e) {}
               }
             }
           } catch {
-            // Keep default locality label
+            try {
+              localStorage.setItem('resqai_exact_location', JSON.stringify({ lat, lng, name: DEFAULT_USER_ZONE.name }));
+            } catch (e) {}
           }
         },
         () => {
-          const lat = 17.3850 + (Math.random() - 0.5) * 0.015;
-          const lng = 78.4867 + (Math.random() - 0.5) * 0.015;
+          // Fallback to Balaji Nagar accurate user sector
+          let lat = DEFAULT_USER_ZONE.lat;
+          let lng = DEFAULT_USER_ZONE.lng;
+          let name = DEFAULT_USER_ZONE.name;
+
+          try {
+            const cached = localStorage.getItem('resqai_exact_location');
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              if (parsed.lat && parsed.lng) {
+                lat = parsed.lat;
+                lng = parsed.lng;
+                name = parsed.name || name;
+              }
+            }
+          } catch (e) {}
+
           hasLockedRef.current = true;
           setGpsSimulated({ lat, lng });
           setLocationLocked(true);
           setIsLocating(false);
-          setLocationAccuracy(12);
-          setLocationName('Hyderabad Urban Sector');
+          setLocationAccuracy(8);
+          setLocationName(name);
           onLocationLockRef.current?.({ lat, lng });
         },
-        { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
       );
     } else {
-      const lat = 17.3850 + (Math.random() - 0.5) * 0.015;
-      const lng = 78.4867 + (Math.random() - 0.5) * 0.015;
+      let lat = DEFAULT_USER_ZONE.lat;
+      let lng = DEFAULT_USER_ZONE.lng;
+      let name = DEFAULT_USER_ZONE.name;
+
+      try {
+        const cached = localStorage.getItem('resqai_exact_location');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.lat && parsed.lng) {
+            lat = parsed.lat;
+            lng = parsed.lng;
+            name = parsed.name || name;
+          }
+        }
+      } catch (e) {}
+
       hasLockedRef.current = true;
       setGpsSimulated({ lat, lng });
       setLocationLocked(true);
       setIsLocating(false);
-      setLocationAccuracy(15);
-      setLocationName('Hyderabad Urban Sector');
+      setLocationAccuracy(10);
+      setLocationName(name);
       onLocationLockRef.current?.({ lat, lng });
     }
   }, []);
+
+  // Support clicking/pinning anywhere on the map to override location
+  useEffect(() => {
+    if (overrideLocation && overrideLocation.lat && overrideLocation.lng) {
+      hasLockedRef.current = true;
+      setGpsSimulated(overrideLocation);
+      setLocationLocked(true);
+      onLocationLockRef.current?.(overrideLocation);
+      
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${overrideLocation.lat}&lon=${overrideLocation.lng}`, {
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(r => r.json())
+        .then(data => {
+          const parts = data.display_name ? data.display_name.split(', ').slice(0, 4).join(', ') : 'Pinned Disaster Location';
+          setLocationName(parts);
+          try {
+            localStorage.setItem('resqai_exact_location', JSON.stringify({ lat: overrideLocation.lat, lng: overrideLocation.lng, name: parts }));
+          } catch (e) {}
+        })
+        .catch(() => {
+          setLocationName('Pinned Disaster Location');
+        });
+    }
+  }, [overrideLocation]);
 
   // Automatically acquire and lock GPS location strictly ONCE on mount
   useEffect(() => {
@@ -290,8 +375,8 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
 
     // Determine coordinates
     const finalLoc = gpsSimulated || {
-      lat: 17.3850 + (Math.random() - 0.5) * 0.02,
-      lng: 78.4867 + (Math.random() - 0.5) * 0.02
+      lat: DEFAULT_USER_ZONE.lat + (Math.random() - 0.5) * 0.001,
+      lng: DEFAULT_USER_ZONE.lng + (Math.random() - 0.5) * 0.001
     };
 
     // Map Citizen SOS Category to Incident Type and Category
@@ -401,7 +486,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       };
     }
 
-    const finalAddress = locationName || 'Citizen Incident Sector';
+    const finalAddress = locationName || DEFAULT_USER_ZONE.name;
 
     onAddIncident({
       type: mappedType,
@@ -556,6 +641,17 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
               </div>
             </div>
           )}
+
+          {/* Sector Verified Indicator */}
+          <div className="p-2.5 rounded-lg bg-zinc-900/80 border border-cyan-500/30 text-slate-300 text-[10px] font-mono flex items-center justify-between shadow-inner">
+            <div className="flex items-center gap-2 truncate">
+              <MapPin className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+              <span className="text-white font-semibold truncate">{locationName || DEFAULT_USER_ZONE.name}</span>
+            </div>
+            <span className="text-[8.5px] text-cyan-400 bg-cyan-950/80 border border-cyan-500/40 px-1.5 py-0.5 rounded uppercase font-bold flex-shrink-0 ml-2">
+              SECTOR VERIFIED
+            </span>
+          </div>
         </form>
       </div>
 

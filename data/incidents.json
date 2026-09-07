@@ -2,12 +2,41 @@
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
+    "severity": 82,
+    "location": {
+      "lat": 17.47218,
+      "lng": 78.42259
+    },
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad",
+    "description": "CITIZEN SOS REPORT: hi",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": false,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Dispatched",
+    "id": "inc-1788805687965-zifn",
+    "reportedAt": "23:58:07",
+    "isUserReported": true,
+    "starred": true,
+    "assignedVehicleId": "veh-237",
+    "resolvedAt": "23:59:35",
+    "resolutionSummary": "Resolved by EOC Operator at 23:59:35. Threat neutralized, area secured."
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
     "severity": 80,
     "location": {
-      "lat": 17.382459914564258,
-      "lng": 78.48213692132462
+      "lat": 17.47218125973849,
+      "lng": 78.42259462204298
     },
-    "addressContext": "Hyderabad Urban Sector",
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad",
     "description": "CITIZEN SOS REPORT: lol1.0",
     "casualtyEstimate": 0,
     "trappedCount": 0,
@@ -19,24 +48,24 @@
     "needsSOSValidation": true,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Dispatched",
+    "status": "Resolved",
     "id": "inc-1788805178299-ar4a",
     "reportedAt": "23:49:38",
     "isUserReported": true,
     "starred": true,
-    "assignedVehicleId": "veh-233",
-    "resolvedAt": "23:50:12",
-    "resolutionSummary": "Operation concluded at 23:50:12. Hazard neutralized, victims evacuated to emergency shelter."
+    "assignedVehicleId": "veh-125",
+    "resolvedAt": "23:59:20",
+    "resolutionSummary": "Resolved by EOC Operator at 23:59:20. Threat neutralized, area secured."
   },
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
     "severity": 81,
     "location": {
-      "lat": 17.38086185537742,
-      "lng": 78.49078309205018
+      "lat": 17.47218125973849,
+      "lng": 78.42259462204298
     },
-    "addressContext": "Hyderabad Urban Sector",
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad",
     "description": "CITIZEN SOS REPORT: j",
     "casualtyEstimate": 0,
     "trappedCount": 0,
@@ -48,25 +77,25 @@
     "needsSOSValidation": true,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Active",
+    "status": "Resolved",
     "id": "inc-1788804963548-wbdb",
     "reportedAt": "23:46:03",
     "isUserReported": true,
     "starred": true,
     "assignedVehicleId": "veh-114",
-    "resolvedAt": "23:46:26",
-    "resolutionSummary": "Operation concluded at 23:46:26. Hazard neutralized, victims evacuated to emergency shelter."
+    "resolvedAt": "23:59:23",
+    "resolutionSummary": "Resolved by EOC Operator at 23:59:23. Threat neutralized, area secured."
   },
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
     "severity": 71,
     "location": {
-      "lat": 17.37793787482389,
-      "lng": 78.48032255178353
+      "lat": 17.472181,
+      "lng": 78.422595
     },
-    "addressContext": "Auto-Locked: Hyderabad Sector (17.3779, 78.4803)",
-    "description": "CITIZEN SOS REPORT: Vammo. (Location: Auto-Locked: Hyderabad Sector (17.3779, 78.4803))",
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad",
+    "description": "CITIZEN SOS REPORT: Vammo.",
     "casualtyEstimate": 0,
     "trappedCount": 0,
     "requiredResources": [
@@ -77,25 +106,25 @@
     "needsSOSValidation": false,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Active",
+    "status": "Resolved",
     "id": "inc-1788803345966-04sq",
     "reportedAt": "23:19:05",
     "isUserReported": true,
     "starred": true,
     "assignedVehicleId": "veh-452",
-    "resolvedAt": "23:20:04",
-    "resolutionSummary": "Operation concluded at 23:20:04. Hazard neutralized, victims evacuated to emergency shelter."
+    "resolvedAt": "23:59:16",
+    "resolutionSummary": "Resolved by EOC Operator at 23:59:16. Threat neutralized, area secured."
   },
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
     "severity": 71,
     "location": {
-      "lat": 17.38097749815443,
-      "lng": 78.49233723081198
+      "lat": 17.472181,
+      "lng": 78.422595
     },
-    "addressContext": "Auto-Locked: Hyderabad Sector (17.3810, 78.4923)",
-    "description": "CITIZEN SOS REPORT: Phone check. (Location: Auto-Locked: Hyderabad Sector (17.3810, 78.4923))",
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad",
+    "description": "CITIZEN SOS REPORT: Phone check.",
     "casualtyEstimate": 0,
     "trappedCount": 0,
     "requiredResources": [
@@ -120,11 +149,11 @@
     "category": "Disaster Response",
     "severity": 70,
     "location": {
-      "lat": 17.387713941642986,
-      "lng": 78.48434671622823
+      "lat": 17.472181,
+      "lng": 78.422595
     },
-    "addressContext": "Auto-Locked: Hyderabad Sector (17.3877, 78.4843)",
-    "description": "CITIZEN SOS REPORT: Phone. (Location: Auto-Locked: Hyderabad Sector (17.3877, 78.4843))",
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad",
+    "description": "CITIZEN SOS REPORT: Phone.",
     "casualtyEstimate": 0,
     "trappedCount": 0,
     "requiredResources": [
@@ -222,14 +251,14 @@
     "needsSOSValidation": false,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Dispatched",
+    "status": "Resolved",
     "id": "inc-1788800739323-8ybj",
     "reportedAt": "22:35:39",
     "isUserReported": true,
     "starred": true,
     "assignedVehicleId": "veh-19",
-    "resolvedAt": "23:19:48",
-    "resolutionSummary": "Operation concluded at 23:19:48. Hazard neutralized, victims evacuated to emergency shelter."
+    "resolvedAt": "23:59:15",
+    "resolutionSummary": "Resolved by EOC Operator at 23:59:15. Threat neutralized, area secured."
   },
   {
     "type": "Rescue Request",
@@ -263,37 +292,10 @@
     "category": "Disaster Response",
     "severity": 70,
     "location": {
-      "lat": 17.382525154026258,
-      "lng": 78.4778531851814
+      "lat": 17.472181,
+      "lng": 78.422595
     },
-    "description": "CITIZEN SOS REPORT: ehijrii. (Sub-location context: Unspecified)",
-    "casualtyEstimate": 2,
-    "trappedCount": 2,
-    "requiredResources": [
-      "Urban Search & Rescue Unit",
-      "Ambulance"
-    ],
-    "reporter": "Citizen Portal",
-    "needsSOSValidation": false,
-    "aiPriority": "HIGH",
-    "etaResolution": 4,
-    "status": "Active",
-    "id": "inc-1788800253148-s0mm",
-    "reportedAt": "22:27:33",
-    "addressContext": "LAT 17.3825, LNG 78.4779",
-    "isUserReported": true,
-    "starred": true,
-    "assignedVehicleId": "veh-156"
-  },
-  {
-    "type": "Rescue Request",
-    "category": "Disaster Response",
-    "severity": 73,
-    "location": {
-      "lat": 17.472211265976238,
-      "lng": 78.4226140291842
-    },
-    "description": "CITIZEN SOS REPORT: eee. (Sub-location context: Live browser coordinates locked)",
+    "description": "CITIZEN SOS REPORT: ehijrii.",
     "casualtyEstimate": 0,
     "trappedCount": 0,
     "requiredResources": [
@@ -304,25 +306,54 @@
     "needsSOSValidation": false,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Dispatched",
+    "status": "Resolved",
+    "id": "inc-1788800253148-s0mm",
+    "reportedAt": "22:27:33",
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad",
+    "isUserReported": true,
+    "starred": true,
+    "assignedVehicleId": "veh-156",
+    "resolvedAt": "23:59:13",
+    "resolutionSummary": "Resolved by EOC Operator at 23:59:13. Threat neutralized, area secured."
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
+    "severity": 73,
+    "location": {
+      "lat": 17.472211265976238,
+      "lng": 78.4226140291842
+    },
+    "description": "CITIZEN SOS REPORT: eee.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": false,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Resolved",
     "id": "inc-1788800066565-4onj",
     "reportedAt": "22:24:26",
-    "addressContext": "LAT 17.4722, LNG 78.4226",
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad",
     "isUserReported": true,
     "starred": true,
     "assignedVehicleId": "veh-19",
-    "resolvedAt": "23:18:37",
-    "resolutionSummary": "Operation concluded at 23:18:37. Hazard neutralized, victims evacuated to emergency shelter."
+    "resolvedAt": "23:59:18",
+    "resolutionSummary": "Resolved by EOC Operator at 23:59:18. Threat neutralized, area secured."
   },
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
     "severity": 71,
     "location": {
-      "lat": 17.38812265916929,
-      "lng": 78.48302592930101
+      "lat": 17.472181,
+      "lng": 78.422595
     },
-    "description": "CITIZEN SOS REPORT: 12345. (Sub-location context: Unspecified)",
+    "description": "CITIZEN SOS REPORT: 12345.",
     "casualtyEstimate": 0,
     "trappedCount": 0,
     "requiredResources": [
@@ -336,7 +367,7 @@
     "status": "Resolved",
     "id": "inc-1788800040215-b9ut",
     "reportedAt": "22:24:00",
-    "addressContext": "LAT 17.3881, LNG 78.4830",
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad",
     "isUserReported": true,
     "starred": true,
     "assignedVehicleId": "veh-265",
@@ -379,16 +410,19 @@
     },
     "description": "Urgent: Begumpet underpass flooded, water level 4 feet. Two auto-rickshaws trapped with 5 passengers.",
     "reporter": "Citizen Phone #9876543210",
-    "trappedCount": 5,
+    "trappedCount": 0,
     "id": "inc-1788799951264-z8dp4",
     "reportedAt": "10:22 PM",
-    "status": "Active",
+    "status": "Resolved",
     "isUserReported": true,
     "starred": true,
     "requiredResources": [
       "First Responder Unit"
     ],
-    "assignedVehicleId": "veh-196"
+    "assignedVehicleId": "veh-196",
+    "casualtyEstimate": 0,
+    "resolvedAt": "23:59:26",
+    "resolutionSummary": "Resolved by EOC Operator at 23:59:26. Threat neutralized, area secured."
   },
   {
     "id": "inc-101",

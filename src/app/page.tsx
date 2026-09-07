@@ -203,7 +203,20 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
   const [eocDate, setEocDate] = useState('');
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
-  const [userLiveLocation, setUserLiveLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLiveLocation, setUserLiveLocation] = useState<{ lat: number; lng: number } | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('resqai_exact_location');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.lat && parsed.lng) {
+            return { lat: parsed.lat, lng: parsed.lng };
+          }
+        }
+      } catch (e) {}
+    }
+    return { lat: 17.47218, lng: 78.42259 };
+  });
   const handleUserLiveLocationLock = useCallback((loc: { lat: number; lng: number } | null) => {
     if (!loc) return;
     setUserLiveLocation(prev => {
@@ -1210,6 +1223,7 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
                 addNotification={addNotification}
                 onUpdateIncident={handleUpdateIncident}
                 onLocationLock={handleUserLiveLocationLock}
+                overrideLocation={userLiveLocation}
               />
             </div>
 
@@ -1347,6 +1361,10 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
                   onForecastHoursChange={setForecastHours}
                   userLocation={userLiveLocation}
                   hideUserLocationMarker={true}
+                  onMapClick={(loc) => {
+                    setUserLiveLocation(loc);
+                    addNotification(`Disaster coordinates pinned at ${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E`, 'info');
+                  }}
                 />
               </div>
             </div>

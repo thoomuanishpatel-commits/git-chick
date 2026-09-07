@@ -24,9 +24,10 @@ interface CommandMapProps {
   onForecastHoursChange?: (hours: number) => void;
   userLocation?: { lat: number; lng: number } | null;
   hideUserLocationMarker?: boolean;
+  onMapClick?: (loc: Location) => void;
 }
 
-// Map events handler to allow clicks on map to set road blockages
+// Map events handler to allow clicks on map to set road blockages or pin locations
 function MapEventsHandler({ onMapClick }: { onMapClick: (loc: Location) => void }) {
   const map = useMap();
   useEffect(() => {
@@ -52,14 +53,7 @@ function MapCenterHandler({
 }) {
   const map = useMap();
   useEffect(() => {
-    if (userLocation) {
-      const zoom = 14;
-      const lngOffset = 0.12 / Math.pow(2, zoom - 12);
-      map.flyTo([userLocation.lat, userLocation.lng + lngOffset], zoom, {
-        animate: true,
-        duration: 1.5,
-      });
-    } else if (selectedIncident) {
+    if (selectedIncident) {
       // Step 3: Determine zoom depending on disaster size
       let zoom = 15; // default
       if (selectedIncident.type === 'Building Collapse' || selectedIncident.type === 'Road Blockage' || selectedIncident.type === 'Medical Emergency') {
@@ -87,6 +81,13 @@ function MapCenterHandler({
       map.flyTo([selectedVehicle.location.lat, selectedVehicle.location.lng + lngOffset], zoom, {
         animate: true,
         duration: 2.0,
+      });
+    } else if (userLocation) {
+      const zoom = 14;
+      const lngOffset = 0.12 / Math.pow(2, zoom - 12);
+      map.flyTo([userLocation.lat, userLocation.lng + lngOffset], zoom, {
+        animate: true,
+        duration: 1.5,
       });
     }
   }, [selectedIncident, selectedVehicle, userLocation, map]);
@@ -258,6 +259,7 @@ export default function CommandMap({
   onForecastHoursChange,
   userLocation,
   hideUserLocationMarker = false,
+  onMapClick,
 }: CommandMapProps) {
   const [mounted, setMounted] = useState(false);
   const [mapKey, setMapKey] = useState('');
@@ -693,10 +695,12 @@ export default function CommandMap({
           onZoomChange={setCurrentZoom}
         />
 
-        {/* Clicks add road barriers */}
-        {layers.closures && (
+        {/* Interactive map clicks: pins location or toggles road barriers */}
+        {onMapClick ? (
+          <MapEventsHandler onMapClick={onMapClick} />
+        ) : layers.closures ? (
           <MapEventsHandler onMapClick={onToggleRoadClosure} />
-        )}
+        ) : null}
 
         {/* User's live tracked location marker */}
         {!hideUserLocationMarker && userLocation && userLocationIcon && (

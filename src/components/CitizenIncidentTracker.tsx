@@ -32,7 +32,14 @@ interface CitizenIncidentTrackerProps {
   addNotification: (msg: string, type: 'emergency' | 'warning' | 'info' | 'success') => void;
   onUpdateIncident?: (updated: Incident) => void;
   onLocationLock?: (loc: { lat: number; lng: number } | null) => void;
+  overrideLocation?: { lat: number; lng: number } | null;
 }
+
+const DEFAULT_USER_ZONE = {
+  lat: 17.47218,
+  lng: 78.42259,
+  name: 'Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad'
+};
 
 export default function CitizenIncidentTracker({
   incidents,
@@ -42,13 +49,27 @@ export default function CitizenIncidentTracker({
   onAddIncident,
   addNotification,
   onUpdateIncident,
-  onLocationLock
+  onLocationLock,
+  overrideLocation = null
 }: CitizenIncidentTrackerProps) {
   const [activeTab, setActiveTab] = useState<'report' | 'track'>('report');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'resolved'>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('resqai_exact_location');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.lat && parsed.lng) {
+            return { lat: parsed.lat, lng: parsed.lng };
+          }
+        }
+      } catch (e) {}
+    }
+    return { lat: DEFAULT_USER_ZONE.lat, lng: DEFAULT_USER_ZONE.lng };
+  });
 
   const handleChildLocationLock = useCallback((loc: { lat: number; lng: number } | null) => {
     if (!loc) return;
@@ -63,19 +84,20 @@ export default function CitizenIncidentTracker({
 
   // Obtain live browser location for distance calculations only if not already set
   useEffect(() => {
-    if (!userLocation && typeof window !== 'undefined' && navigator.geolocation) {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setUserLocation(prev => prev || {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude
-          });
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(loc);
+          try {
+            localStorage.setItem('resqai_exact_location', JSON.stringify({ ...loc, name: DEFAULT_USER_ZONE.name }));
+          } catch (e) {}
         },
         () => {
-          // Fallback to central Hyderabad coordinates
-          setUserLocation(prev => prev || { lat: 17.3850, lng: 78.4867 });
+          // Fallback to Balaji Nagar sector coordinates
+          setUserLocation(prev => prev || { lat: DEFAULT_USER_ZONE.lat, lng: DEFAULT_USER_ZONE.lng });
         },
-        { enableHighAccuracy: false, timeout: 4000 }
+        { enableHighAccuracy: true, timeout: 5000 }
       );
     }
   }, []);
@@ -84,10 +106,12 @@ export default function CitizenIncidentTracker({
   const handleCopyLink = (inc: Incident) => {
     if (typeof window === 'undefined') return;
     const shareUrl = `${window.location.origin}${window.location.pathname}?incident=${inc.id}`;
-    navigator.clipboard.writeText(shareUrl).then(() => {
+    const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${inc.location.lat},${inc.location.lng}`;
+    const fullText = `🚨 RESQAI DISASTER ALERT - ${inc.type}\nSector: ${inc.addressContext || `${inc.location.lat.toFixed(4)}°N, ${inc.location.lng.toFixed(4)}°E`}\nLive Portal: ${shareUrl}\nGoogle Maps Navigation: ${gmapsUrl}`;
+    navigator.clipboard.writeText(fullText).then(() => {
       setCopiedId(inc.id);
       setTimeout(() => setCopiedId(null), 2500);
-      addNotification(`LINK COPIED: Disaster link for ${inc.type} scene copied to clipboard.`, 'success');
+      addNotification(`LINK COPIED: Disaster dispatch link and navigation coordinates copied to clipboard.`, 'success');
     }).catch(() => {
       addNotification('Could not copy link to clipboard.', 'warning');
     });
@@ -267,8 +291,8 @@ export default function CitizenIncidentTracker({
     if (isSendingSos) return;
     setIsSendingSos(true);
 
-    let lat = 17.3850;
-    let lng = 78.4867;
+    let lat = DEFAULT_USER_ZONE.lat;
+    let lng = DEFAULT_USER_ZONE.lng;
 
     const sendRequest = (coords: { lat: number; lng: number }) => {
       onAddIncident({
@@ -276,7 +300,7 @@ export default function CitizenIncidentTracker({
         category: 'Public Safety',
         severity: 60,
         location: coords,
-        addressContext: 'Citizen Emergency Location',
+        addressContext: DEFAULT_USER_ZONE.name,
         description: 'POLICE SOS: Immediate police assistance requested by citizen.',
         casualtyEstimate: 0,
         trappedCount: 0,
@@ -303,8 +327,8 @@ export default function CitizenIncidentTracker({
         },
         () => {
           sendRequest({
-            lat: 17.3850 + (Math.random() - 0.5) * 0.01,
-            lng: 78.4867 + (Math.random() - 0.5) * 0.01
+            lat: DEFAULT_USER_ZONE.lat + (Math.random() - 0.5) * 0.001,
+            lng: DEFAULT_USER_ZONE.lng + (Math.random() - 0.5) * 0.001
           });
         },
         { timeout: 3000 }
@@ -498,6 +522,7 @@ export default function CitizenIncidentTracker({
               addNotification={addNotification}
               onLocationLock={handleChildLocationLock}
               compact={true}
+              overrideLocation={overrideLocation}
             />
           </div>
         ) : (
