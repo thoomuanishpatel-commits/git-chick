@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Send, MapPin, Camera, HelpCircle, Shield, AlertTriangle, Loader2, CheckCircle2, RefreshCw, Lock } from 'lucide-react';
+import { Send, Camera, Shield, AlertTriangle, Loader2 } from 'lucide-react';
 import { Incident } from '../utils/mockData';
 
 interface CitizenSOSProps {
@@ -114,7 +114,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<any>(null);
 
-  const handleDetectLocation = useCallback((force = false, silent = false) => {
+  const handleDetectLocation = useCallback((force = false) => {
     // If already locked and user did not explicitly force recalibration, exit immediately
     if (hasLockedRef.current && !force) {
       return;
@@ -132,11 +132,8 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
           setLocationLocked(true);
           setIsLocating(false);
           setLocationAccuracy(accuracy);
-          setLocationName(`Auto-Locked: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+          setLocationName('Hyderabad Urban Sector');
           onLocationLockRef.current?.({ lat, lng });
-          if (!silent) {
-            addNotificationRef.current?.(`GPS locked: ${lat.toFixed(4)}, ${lng.toFixed(4)} (±${accuracy}m precision)`, 'success');
-          }
 
           // Optional reverse geocoding to human-readable locality
           try {
@@ -156,7 +153,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
               }
             }
           } catch {
-            // Keep default locked coordinate label on geocoding timeout
+            // Keep default locality label
           }
         },
         () => {
@@ -167,11 +164,8 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
           setLocationLocked(true);
           setIsLocating(false);
           setLocationAccuracy(12);
-          setLocationName(`Auto-Locked: Hyderabad Sector (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+          setLocationName('Hyderabad Urban Sector');
           onLocationLockRef.current?.({ lat, lng });
-          if (!silent) {
-            addNotificationRef.current?.('GPS permission restricted. Auto-locked to Hyderabad sector coordinates.', 'warning');
-          }
         },
         { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
       );
@@ -183,7 +177,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       setLocationLocked(true);
       setIsLocating(false);
       setLocationAccuracy(15);
-      setLocationName(`Auto-Locked: Hyderabad Sector (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+      setLocationName('Hyderabad Urban Sector');
       onLocationLockRef.current?.({ lat, lng });
     }
   }, []);
@@ -191,7 +185,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
   // Automatically acquire and lock GPS location strictly ONCE on mount
   useEffect(() => {
     if (!hasLockedRef.current) {
-      handleDetectLocation(false, true);
+      handleDetectLocation(false);
     }
   }, [handleDetectLocation]);
 
@@ -407,7 +401,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       };
     }
 
-    const finalAddress = locationName || `Auto-Locked GPS: ${finalLoc.lat.toFixed(5)}, ${finalLoc.lng.toFixed(5)}`;
+    const finalAddress = locationName || 'Citizen Incident Sector';
 
     onAddIncident({
       type: mappedType,
@@ -417,7 +411,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       addressContext: finalAddress,
       description: parsedAiResult 
         ? `VERIFIED SOS REPORT: ${description}. (AI Scan: ${parsedAiResult.description})`
-        : `CITIZEN SOS REPORT: ${description}. (Location: ${finalAddress})`,
+        : `CITIZEN SOS REPORT: ${description}`,
       casualtyEstimate: parsedAiResult?.casualtyEstimate ?? Math.round(Math.random() * 2),
       trappedCount: parsedAiResult?.trappedCount ?? Math.round(Math.random() * 2),
       requiredResources,
@@ -435,7 +429,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
     if (parsedAiResult) {
       addNotification(`AI VERIFIED SOS: Broadcast registered for ${mappedType} severity ${baseSeverity}%.`, 'success');
     } else {
-      addNotification(`CITIZEN SOS RECEIVED: Dispatching assessment unit for ${sosCategory} request at locked coordinates.`, 'emergency');
+      addNotification(`CITIZEN SOS RECEIVED: Emergency response unit requested for ${sosCategory}.`, 'emergency');
     }
 
     // Reset inputs, preserving locked GPS for subsequent reports
@@ -503,133 +497,43 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
           </div>
 
           {/* GPS & Photo Upload Row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-slate-400 uppercase text-[10px]">GPS Coordinates</label>
-                {locationLocked && (
-                  <span className="inline-flex items-center space-x-1 text-[9px] text-emerald-400 font-bold">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                    </span>
-                    <span>AUTO-LOCKED</span>
+          {/* Visual Media Attachment */}
+          <div>
+            <label className="text-slate-400 block mb-1 uppercase text-[10px]">Visual Media Attachment</label>
+            <input
+              type="file"
+              id="sos-photo-input"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              disabled={aiScanning}
+              onClick={() => document.getElementById('sos-photo-input')?.click()}
+              className={`w-full py-2.5 flex items-center justify-center space-x-1.5 border rounded-lg transition overflow-hidden text-ellipsis whitespace-nowrap px-3 cursor-pointer ${
+                aiScanning
+                  ? 'bg-cyan-950/20 text-cyan-400 border-cyan-500/40 animate-pulse'
+                  : photoBase64
+                  ? 'bg-cyan-950/20 text-cyan-400 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.1)] font-bold'
+                  : 'bg-white/5 text-slate-300 border-white/10 hover:border-slate-500'
+              }`}
+            >
+              {aiScanning ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 flex-shrink-0 animate-spin" />
+                  <span className="truncate text-[10px]">SCANNING IMAGE...</span>
+                </>
+              ) : (
+                <>
+                  <Camera className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate text-[10px]">
+                    {photoName ? photoName : 'ATTACH PHOTO'}
                   </span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => handleDetectLocation(true, false)}
-                disabled={isLocating}
-                title="Click to recalibrate GPS location"
-                className={`w-full py-2 flex items-center justify-center space-x-1.5 border rounded-lg transition ${
-                  locationLocked && gpsSimulated
-                    ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
-                    : isLocating
-                    ? 'bg-cyan-950/30 text-cyan-300 border-cyan-500/40 animate-pulse'
-                    : 'bg-white/5 text-slate-300 border-white/10 hover:border-slate-500'
-                }`}
-              >
-                {isLocating ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-                    <span className="text-[10px] font-bold tracking-wider">LOCKING GPS...</span>
-                  </>
-                ) : locationLocked ? (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-[10px] font-bold tracking-wider text-emerald-300">GPS AUTO-LOCKED</span>
-                  </>
-                ) : (
-                  <>
-                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-[10px] font-bold tracking-wider">ACQUIRE GPS</span>
-                  </>
-                )}
-              </button>
-            </div>
-            
-            <div>
-              <label className="text-slate-400 block mb-1 uppercase text-[10px]">Visual Media Attachment</label>
-              <input
-                type="file"
-                id="sos-photo-input"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <button
-                type="button"
-                disabled={aiScanning}
-                onClick={() => document.getElementById('sos-photo-input')?.click()}
-                className={`w-full py-2 flex items-center justify-center space-x-1.5 border rounded-lg transition overflow-hidden text-ellipsis whitespace-nowrap px-2 cursor-pointer ${
-                  aiScanning
-                    ? 'bg-cyan-950/20 text-cyan-400 border-cyan-500/40 animate-pulse'
-                    : photoBase64
-                    ? 'bg-cyan-950/20 text-cyan-400 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.1)] font-bold'
-                    : 'bg-white/5 text-slate-300 border-white/10 hover:border-slate-500'
-                }`}
-              >
-                {aiScanning ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 flex-shrink-0 animate-spin" />
-                    <span className="truncate text-[10px]">SCANNING IMAGE...</span>
-                  </>
-                ) : (
-                  <>
-                    <Camera className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="truncate text-[10px]">
-                      {photoName ? photoName : 'ATTACH PHOTO'}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
+                </>
+              )}
+            </button>
           </div>
-
-          {/* Auto-Locked GPS Telemetry HUD */}
-          {gpsSimulated ? (
-            <div className="bg-emerald-950/20 border border-emerald-500/30 text-emerald-300 px-3 py-2 rounded-lg text-[9.5px] flex flex-col gap-1 font-mono shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-1.5 font-bold">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span className="text-emerald-400 tracking-wider">🟢 AUTOMATICALLY LOCKED</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleDetectLocation(true, false)}
-                  className="flex items-center space-x-1 text-slate-400 hover:text-emerald-300 transition text-[9px]"
-                  title="Recalibrate GPS"
-                >
-                  <RefreshCw className={`w-2.5 h-2.5 ${isLocating ? 'animate-spin' : ''}`} />
-                  <span>Recalibrate</span>
-                </button>
-              </div>
-              <div className="flex justify-between items-center text-slate-300 text-[9px]">
-                <span className="truncate max-w-[220px] text-slate-200 font-semibold">
-                  {locationName || `Lat: ${gpsSimulated.lat.toFixed(5)}, Lng: ${gpsSimulated.lng.toFixed(5)}`}
-                </span>
-                <span className="text-emerald-400/80 font-mono text-[9px] flex-shrink-0">
-                  ±{locationAccuracy || 4}m Precision
-                </span>
-              </div>
-              <div className="text-[8.5px] text-slate-400 flex justify-between">
-                <span>LAT: {gpsSimulated.lat.toFixed(5)} | LNG: {gpsSimulated.lng.toFixed(5)}</span>
-                <span className="text-emerald-400/70 font-semibold">Tagged to report</span>
-              </div>
-            </div>
-          ) : isLocating ? (
-            <div className="bg-cyan-950/20 border border-cyan-500/30 text-cyan-300 px-3 py-2 rounded-lg text-[9.5px] flex items-center justify-between font-mono animate-pulse">
-              <div className="flex items-center space-x-2">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-                <span>Auto-locking live satellite coordinates...</span>
-              </div>
-              <span className="text-[9px] text-cyan-400/80 font-bold">HIGH PRECISION</span>
-            </div>
-          ) : null}
 
           {aiAnalysisResult && (
             <div className="bg-emerald-950/20 border border-emerald-500/30 text-emerald-400 p-2.5 rounded-lg text-[9px] flex items-start gap-2 font-mono">

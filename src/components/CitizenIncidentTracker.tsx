@@ -276,8 +276,8 @@ export default function CitizenIncidentTracker({
         category: 'Public Safety',
         severity: 60,
         location: coords,
-        addressContext: `Auto-Locked GPS: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`,
-        description: 'POLICE SOS: Immediate police assistance requested by citizen. Live GPS coordinates locked.',
+        addressContext: 'Citizen Emergency Location',
+        description: 'POLICE SOS: Immediate police assistance requested by citizen.',
         casualtyEstimate: 0,
         trappedCount: 0,
         requiredResources: ['Police Patrol'],
@@ -288,7 +288,7 @@ export default function CitizenIncidentTracker({
       });
       setIsSendingSos(false);
       setShowSosConfirm(false);
-      addNotification('POLICE SOS SENT: Emergency police dispatch initiated with locked coordinates.', 'emergency');
+      addNotification('POLICE SOS SENT: Emergency police dispatch initiated.', 'emergency');
     };
 
     if (userLocation) {

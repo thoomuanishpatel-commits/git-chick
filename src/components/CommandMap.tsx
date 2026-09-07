@@ -23,6 +23,7 @@ interface CommandMapProps {
   forecastHours?: number;
   onForecastHoursChange?: (hours: number) => void;
   userLocation?: { lat: number; lng: number } | null;
+  hideUserLocationMarker?: boolean;
 }
 
 // Map events handler to allow clicks on map to set road blockages
@@ -256,6 +257,7 @@ export default function CommandMap({
   forecastHours: propForecastHours,
   onForecastHoursChange,
   userLocation,
+  hideUserLocationMarker = false,
 }: CommandMapProps) {
   const [mounted, setMounted] = useState(false);
   const [mapKey, setMapKey] = useState('');
@@ -697,7 +699,7 @@ export default function CommandMap({
         )}
 
         {/* User's live tracked location marker */}
-        {userLocation && userLocationIcon && (
+        {!hideUserLocationMarker && userLocation && userLocationIcon && (
           <Marker 
             position={[userLocation.lat, userLocation.lng]} 
             icon={userLocationIcon}
@@ -1256,7 +1258,7 @@ export default function CommandMap({
           ))}
 
         {/* Live User Agent Commander Location tracking */}
-        {userLocation && (
+        {!hideUserLocationMarker && userLocation && (
           <Marker
             position={[userLocation.lat, userLocation.lng]}
             icon={L.divIcon({

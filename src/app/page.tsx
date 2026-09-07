@@ -1345,6 +1345,7 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
                   forecastHours={forecastHours}
                   onForecastHoursChange={setForecastHours}
                   userLocation={userLiveLocation}
+                  hideUserLocationMarker={true}
                 />
               </div>
             </div>
