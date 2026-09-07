@@ -48,14 +48,14 @@
     "needsSOSValidation": true,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Active",
+    "status": "Dispatched",
     "id": "inc-1788801149815-wbk2",
     "reportedAt": "22:42:29",
     "isUserReported": true,
     "starred": true,
-    "assignedVehicleId": "veh-72",
-    "resolvedAt": "23:14:48",
-    "resolutionSummary": "Operation concluded at 23:14:48. Hazard neutralized, victims evacuated to emergency shelter."
+    "assignedVehicleId": "veh-361",
+    "resolvedAt": "23:15:00",
+    "resolutionSummary": "Operation concluded at 23:15:00. Hazard neutralized, victims evacuated to emergency shelter."
   },
   {
     "type": "Rescue Request",
