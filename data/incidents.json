@@ -2,6 +2,64 @@
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
+    "severity": 80,
+    "location": {
+      "lat": 17.382459914564258,
+      "lng": 78.48213692132462
+    },
+    "addressContext": "Hyderabad Urban Sector",
+    "description": "CITIZEN SOS REPORT: lol1.0",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Dispatched",
+    "id": "inc-1788805178299-ar4a",
+    "reportedAt": "23:49:38",
+    "isUserReported": true,
+    "starred": true,
+    "assignedVehicleId": "veh-17",
+    "resolvedAt": "23:50:12",
+    "resolutionSummary": "Operation concluded at 23:50:12. Hazard neutralized, victims evacuated to emergency shelter."
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
+    "severity": 81,
+    "location": {
+      "lat": 17.38086185537742,
+      "lng": 78.49078309205018
+    },
+    "addressContext": "Hyderabad Urban Sector",
+    "description": "CITIZEN SOS REPORT: j",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Active",
+    "id": "inc-1788804963548-wbdb",
+    "reportedAt": "23:46:03",
+    "isUserReported": true,
+    "starred": true,
+    "assignedVehicleId": "veh-114",
+    "resolvedAt": "23:46:26",
+    "resolutionSummary": "Operation concluded at 23:46:26. Hazard neutralized, victims evacuated to emergency shelter."
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
     "severity": 71,
     "location": {
       "lat": 17.37793787482389,

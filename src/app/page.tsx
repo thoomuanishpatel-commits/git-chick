@@ -1162,10 +1162,11 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
               </button>
               <button
                 onClick={() => setCurrentView('landing')}
-                className="px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-lg border border-white/5 hover:border-white/20 text-zinc-400 hover:text-white transition text-[10px] sm:text-xs font-mono flex items-center gap-1 cursor-pointer flex-shrink-0"
+                className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 hover:border-cyan-500/50 text-zinc-200 hover:text-white transition text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer flex-shrink-0 shadow-sm active:scale-95"
+                title="Return to the Main Home Portal"
               >
-                <span>🏠</span>
-                <span className="hidden sm:inline">Back to Home</span>
+                <span className="text-xs sm:text-sm">🏠</span>
+                <span>Go Back Home</span>
               </button>
               <button
                 onClick={() => setCurrentView('admin')}
@@ -1564,15 +1565,21 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
             </button>
           )}
 
-          {/* Quick Exit */}
+          {/* Quick Exit: Go Back Home */}
           <button
             onClick={() => setCurrentView('landing')}
-            className={`w-full py-2 bg-zinc-900/60 hover:bg-zinc-800 border border-white/5 hover:border-zinc-700 text-zinc-400 hover:text-white transition rounded-xl text-center flex items-center justify-center gap-2 ${
-              sidebarExpanded ? 'text-[10px]' : 'text-xs'
+            className={`w-full py-2 bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-cyan-500/50 text-zinc-300 hover:text-white transition rounded-xl text-center flex items-center justify-center gap-2 relative group cursor-pointer shadow-sm active:scale-95 ${
+              sidebarExpanded ? 'text-[10px] font-bold uppercase tracking-wider' : 'text-xs'
             }`}
+            title="Go Back Home"
           >
-            <span>🚪</span>
-            <span className={sidebarExpanded ? 'inline' : 'hidden'}>Back to Portal</span>
+            <span>🏠</span>
+            <span className={sidebarExpanded ? 'inline' : 'hidden'}>Go Back Home</span>
+            {!sidebarExpanded && (
+              <div className="absolute left-16 px-2 py-1 rounded bg-zinc-900 border border-white/10 text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none text-[8px] z-50">
+                Go Back Home
+              </div>
+            )}
           </button>
 
           {/* Secure Logout Trigger */}
@@ -1623,6 +1630,17 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
         <section className={`absolute top-5 z-[1000] flex flex-wrap gap-2.5 max-w-[calc(100vw-350px)] pointer-events-none transition-all duration-300 ${
           sidebarExpanded ? 'left-68' : 'left-24'
         }`}>
+          {/* Go Back Home Action Button */}
+          <button
+            type="button"
+            onClick={() => setCurrentView('landing')}
+            className="pointer-events-auto bg-zinc-950/95 hover:bg-zinc-900 backdrop-blur-md border border-white/10 hover:border-cyan-500/50 text-zinc-200 hover:text-white px-3.5 py-2 rounded-xl shadow-lg flex items-center gap-2 font-mono text-[10px] uppercase font-bold tracking-wider transition cursor-pointer active:scale-95 group"
+            title="Return to the Main Home Portal"
+          >
+            <span className="text-sm group-hover:-translate-x-0.5 transition-transform">🏠</span>
+            <span>Go Back Home</span>
+          </button>
+
           {/* Welcome EOC Info Badge */}
           <div className="pointer-events-auto bg-zinc-950/90 backdrop-blur-md border border-cyan-500/20 rounded-xl p-2.5 shadow-lg flex items-center gap-3 font-mono">
             <div className="relative flex-shrink-0">

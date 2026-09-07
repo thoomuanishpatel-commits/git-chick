@@ -121,9 +121,11 @@ export default function Login({ onBackToPortal }: { onBackToPortal?: () => void 
           {onBackToPortal && (
             <button
               onClick={onBackToPortal}
-              className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 hover:border-zinc-500 text-zinc-300 hover:text-white transition text-[9px] uppercase tracking-wider font-mono"
+              className="px-3.5 py-1.5 bg-white/10 border border-white/20 rounded-xl hover:bg-white/20 hover:border-cyan-500/50 text-white transition text-[10px] uppercase tracking-wider font-mono font-bold flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95"
+              title="Return to Public Home Portal"
             >
-              ← Back to Portal
+              <span>🏠</span>
+              <span>Go Back Home</span>
             </button>
           )}
         </div>
@@ -387,6 +389,21 @@ export default function Login({ onBackToPortal }: { onBackToPortal?: () => void 
             </div>
             <div className="opacity-75 mt-0.5">UNAUTHORIZED ACCESS IS STRICTLY PROHIBITED BY STATE SECURITY DIRECTIVES.</div>
           </div>
+
+          {/* Direct Go Back Home link */}
+          {onBackToPortal && (
+            <div className="pt-3 border-t border-white/5 text-center mt-3">
+              <button
+                type="button"
+                onClick={onBackToPortal}
+                className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-500/40 text-zinc-300 hover:text-white transition rounded-xl text-center flex items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-wider font-bold cursor-pointer active:scale-98"
+                title="Return to the Main Home Portal"
+              >
+                <span>🏠</span>
+                <span>Go Back Home</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
