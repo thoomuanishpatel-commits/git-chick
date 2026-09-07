@@ -2,6 +2,35 @@
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
+    "severity": 79,
+    "location": {
+      "lat": 17.47218125973849,
+      "lng": 78.42259462204298
+    },
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad",
+    "description": "CITIZEN SOS REPORT: q12w. (Location: Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad)",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": false,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Resolved",
+    "id": "inc-1788803030283-d2jn",
+    "reportedAt": "23:13:50",
+    "isUserReported": true,
+    "starred": true,
+    "assignedVehicleId": "veh-143",
+    "resolvedAt": "23:14:13",
+    "resolutionSummary": "Operation concluded at 23:14:13. Hazard neutralized, victims evacuated to emergency shelter."
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
     "severity": 77,
     "location": {
       "lat": 17.4721927596755,
@@ -9,7 +38,7 @@
     },
     "addressContext": "Auto-Locked: 17.47219, 78.42263",
     "description": "CITIZEN SOS REPORT: efh. (Location: Auto-Locked: 17.47219, 78.42263)",
-    "casualtyEstimate": 2,
+    "casualtyEstimate": 0,
     "trappedCount": 0,
     "requiredResources": [
       "Urban Search & Rescue Unit",
@@ -19,11 +48,14 @@
     "needsSOSValidation": true,
     "aiPriority": "HIGH",
     "etaResolution": 4,
-    "status": "Pending",
+    "status": "Active",
     "id": "inc-1788801149815-wbk2",
     "reportedAt": "22:42:29",
     "isUserReported": true,
-    "starred": true
+    "starred": true,
+    "assignedVehicleId": "veh-72",
+    "resolvedAt": "23:14:48",
+    "resolutionSummary": "Operation concluded at 23:14:48. Hazard neutralized, victims evacuated to emergency shelter."
   },
   {
     "type": "Rescue Request",
@@ -277,7 +309,7 @@
     "type": "Landslide",
     "category": "Disaster Response",
     "severity": 65,
-    "status": "Active",
+    "status": "Resolved",
     "location": {
       "lat": 17.33,
       "lng": 77.9
@@ -293,7 +325,11 @@
     "reporter": "Emergency Patrol",
     "aiPriority": "HIGH",
     "etaResolution": 1.5,
-    "assignedVehicleId": "veh-9"
+    "assignedVehicleId": "veh-9",
+    "resolvedAt": "23:13:44",
+    "resolutionSummary": "Operation concluded at 23:13:44. Hazard neutralized, victims evacuated to emergency shelter.",
+    "isUserReported": false,
+    "starred": false
   },
   {
     "id": "inc-105",
