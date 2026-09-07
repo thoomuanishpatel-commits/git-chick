@@ -1158,6 +1158,7 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
                 }}
                 addNotification={addNotification}
                 onUpdateIncident={handleUpdateIncident}
+                onLocationLock={setUserLiveLocation}
               />
             </div>
 

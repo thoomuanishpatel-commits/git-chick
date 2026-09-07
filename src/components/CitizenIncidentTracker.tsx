@@ -28,9 +28,10 @@ interface CitizenIncidentTrackerProps {
   vehicles: Vehicle[];
   selectedIncident: Incident | null;
   onSelectIncident: (inc: Incident | null) => void;
-  onAddIncident: (inc: Omit<Incident, 'id' | 'reportedAt' | 'status'>) => void;
+  onAddIncident: (inc: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status']; addressContext?: string }) => void;
   addNotification: (msg: string, type: 'emergency' | 'warning' | 'info' | 'success') => void;
   onUpdateIncident?: (updated: Incident) => void;
+  onLocationLock?: (loc: { lat: number; lng: number } | null) => void;
 }
 
 export default function CitizenIncidentTracker({
@@ -40,7 +41,8 @@ export default function CitizenIncidentTracker({
   onSelectIncident,
   onAddIncident,
   addNotification,
-  onUpdateIncident
+  onUpdateIncident,
+  onLocationLock
 }: CitizenIncidentTrackerProps) {
   const [activeTab, setActiveTab] = useState<'report' | 'track'>('report');
   const [searchQuery, setSearchQuery] = useState('');
@@ -263,6 +265,7 @@ export default function CitizenIncidentTracker({
         category: 'Public Safety',
         severity: 60,
         location: coords,
+        addressContext: `Auto-Locked GPS: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`,
         description: 'POLICE SOS: Immediate police assistance requested by citizen. Live GPS coordinates locked.',
         casualtyEstimate: 0,
         trappedCount: 0,
@@ -274,8 +277,13 @@ export default function CitizenIncidentTracker({
       });
       setIsSendingSos(false);
       setShowSosConfirm(false);
-      addNotification('POLICE SOS SENT: Emergency police dispatch initiated.', 'emergency');
+      addNotification('POLICE SOS SENT: Emergency police dispatch initiated with locked coordinates.', 'emergency');
     };
+
+    if (userLocation) {
+      sendRequest(userLocation);
+      return;
+    }
 
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -477,6 +485,10 @@ export default function CitizenIncidentTracker({
             <CitizenSOS 
               onAddIncident={onAddIncident}
               addNotification={addNotification}
+              onLocationLock={(loc) => {
+                if (loc) setUserLocation(loc);
+                onLocationLock?.(loc);
+              }}
               compact={true}
             />
           </div>
