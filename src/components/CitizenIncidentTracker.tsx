@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { 
   Search, ArrowLeft, Clock, Shield, CheckCircle2, 
   MapPin, Truck, AlertTriangle, Users, HeartHandshake,
-  Activity, ArrowRight, ExternalLink, Copy, Check, Share2, Navigation
+  Activity, ArrowRight, ExternalLink, Copy, Check, Share2, Navigation, Star
 } from 'lucide-react';
 import { Incident, Vehicle } from '../utils/mockData';
 import CitizenSOS from './CitizenSOS';
@@ -506,7 +506,15 @@ export default function CitizenIncidentTracker({
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center space-x-2">
                         <Activity className="w-4 h-4 text-cyan-400 animate-pulse" />
-                        <span className="text-sm font-bold text-white uppercase">{selectedIncident.type} crisis</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-bold text-white uppercase">{selectedIncident.type} crisis</span>
+                          {(selectedIncident.isUserReported || selectedIncident.starred) && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[8px] font-bold flex items-center gap-1">
+                              <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                              <span>Citizen Report</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <span className="px-1.5 py-0.5 rounded bg-red-950/20 text-red-400 border border-red-500/20 text-[9px] uppercase font-bold">
                         Sev: {selectedIncident.severity}
@@ -814,7 +822,15 @@ export default function CitizenIncidentTracker({
                               <div className="flex items-center space-x-1.5">
                                 <span className="text-sm">{emoji}</span>
                                 <div>
-                                  <span className="font-bold text-white uppercase text-[10px]">{inc.type}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-white uppercase text-[10px]">{inc.type}</span>
+                                    {(inc.isUserReported || inc.starred) && (
+                                      <span className="px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[7px] font-bold flex items-center gap-0.5">
+                                        <Star className="w-2 h-2 text-amber-400 fill-amber-400" />
+                                        <span>Citizen Report</span>
+                                      </span>
+                                    )}
+                                  </div>
                                   <span className="text-[8px] text-slate-500 block">ID: {inc.id} • {inc.reportedAt}</span>
                                 </div>
                               </div>

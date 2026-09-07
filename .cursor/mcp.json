@@ -9,7 +9,7 @@
       "env": {
         "JET_WORKSPACE": "/Users/thumuanish/projects/resqai copy",
         "JET_API_URL": "https://api.jetro.ai",
-        "PATH": "/Users/thumuanish/.jetro/runtime:/Users/thumuanish/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin"
+        "PATH": "/Users/thumuanish/.jetro/runtime:/Library/Frameworks/Python.framework/Versions/3.12/bin:/Users/thumuanish/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin"
       }
     }
   }

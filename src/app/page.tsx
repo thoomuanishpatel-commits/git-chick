@@ -265,6 +265,9 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
 
   const filteredIncidents = useMemo(() => {
     if (selectedCategory === 'All') return incidents;
+    if (selectedCategory === '⭐ Citizen Reports') {
+      return incidents.filter(inc => inc.isUserReported || inc.starred);
+    }
     if (selectedCategory === 'Disasters') {
       return incidents.filter(inc => inc.type !== 'POLICE_SOS');
     }

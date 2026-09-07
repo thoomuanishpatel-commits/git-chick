@@ -188,6 +188,78 @@ export function useSimulation() {
     ]);
   }, []);
 
+  // Multi-browser synchronization via Server API (/api/incidents)
+  useEffect(() => {
+    let mounted = true;
+
+    const syncWithServer = async () => {
+      try {
+        const res = await fetch('/api/incidents');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && Array.isArray(data.incidents) && mounted) {
+          setIncidents((current) => {
+            const currentMap = new Map(current.map((i) => [i.id, i]));
+            let changed = false;
+            const updatedList = [...current];
+
+            for (const sInc of data.incidents) {
+              const existing = currentMap.get(sInc.id);
+              if (!existing) {
+                // Newly reported incident from another browser!
+                updatedList.unshift(sInc);
+                changed = true;
+                addNotification(
+                  `CROSS-BROWSER INTAKE: ${sInc.type} reported from live citizen session.`,
+                  'emergency'
+                );
+              } else if (
+                existing.status !== sInc.status ||
+                existing.assignedVehicleId !== sInc.assignedVehicleId ||
+                existing.trappedCount !== sInc.trappedCount ||
+                existing.resolvedAt !== sInc.resolvedAt
+              ) {
+                const idx = updatedList.findIndex((i) => i.id === sInc.id);
+                if (idx !== -1) {
+                  updatedList[idx] = { ...updatedList[idx], ...sInc };
+                  changed = true;
+                }
+              }
+            }
+
+            if (changed) {
+              persistIncidents(updatedList);
+              return updatedList;
+            }
+            return current;
+          });
+        }
+      } catch (e) {
+        // Fallback silently to local cache
+      }
+    };
+
+    // Immediate initial sync
+    syncWithServer();
+
+    // Poll every 2500ms so reporting in Browser A appears in Browser B within 2.5 seconds
+    const interval = setInterval(syncWithServer, 2500);
+
+    // Also sync on window focus
+    const handleFocus = () => syncWithServer();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleFocus);
+    }
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleFocus);
+      }
+    };
+  }, [addNotification]);
+
   // Fetch initial data from Supabase if active
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
@@ -410,6 +482,8 @@ export function useSimulation() {
         status: incident.type === 'POLICE_SOS' ? 'SOS Sent' : (incident.status || 'Pending'),
         reportedAt: timeStr,
         addressContext: incident.addressContext || `LAT ${incident.location.lat.toFixed(4)}, LNG ${incident.location.lng.toFixed(4)}`,
+        isUserReported: true,
+        starred: true,
       };
 
       if (newInc.type === 'POLICE_SOS') {
@@ -470,6 +544,13 @@ export function useSimulation() {
         return updated;
       });
       addNotification(`NEW EMERGENCY: ${newInc.type} reported by ${newInc.reporter}. Severity Score: ${newInc.severity}/100.`, 'emergency');
+
+      // Sync creation to Server API so other browsers receive it
+      fetch('/api/incidents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newInc),
+      }).catch((err) => console.error('[useSimulation] POST /api/incidents error:', err));
 
       // Cross-tab real-time broadcast
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -569,6 +650,13 @@ export function useSimulation() {
         ch.close();
       } catch (e) {}
     }
+
+    // Sync update to Server API so other browsers get status changes immediately
+    fetch('/api/incidents', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated),
+    }).catch((err) => console.error('[useSimulation] PATCH /api/incidents error:', err));
 
     if (isSupabaseConfigured && supabase) {
       supabase.from('incidents').update(updated).eq('id', updated.id).then();

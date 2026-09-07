@@ -1,0 +1,688 @@
+[
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
+    "severity": 71,
+    "location": {
+      "lat": 17.38812265916929,
+      "lng": 78.48302592930101
+    },
+    "description": "CITIZEN SOS REPORT: 12345. (Sub-location context: Unspecified)",
+    "casualtyEstimate": 2,
+    "trappedCount": 1,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Pending",
+    "id": "inc-1788800040215-b9ut",
+    "reportedAt": "22:24:00",
+    "addressContext": "LAT 17.3881, LNG 78.4830",
+    "isUserReported": true,
+    "starred": true
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
+    "severity": 70,
+    "location": {
+      "lat": 17.472211265976238,
+      "lng": 78.4226140291842
+    },
+    "description": "CITIZEN SOS REPORT: erfg. (Sub-location context: Live browser coordinates locked)",
+    "casualtyEstimate": 2,
+    "trappedCount": 1,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Pending",
+    "id": "inc-1788800014605-eb64",
+    "reportedAt": "22:23:34",
+    "addressContext": "LAT 17.4722, LNG 78.4226",
+    "isUserReported": true,
+    "starred": true
+  },
+  {
+    "type": "Flood",
+    "category": "Disaster Response",
+    "severity": 88,
+    "location": {
+      "lat": 17.4428,
+      "lng": 78.4682
+    },
+    "description": "Urgent: Begumpet underpass flooded, water level 4 feet. Two auto-rickshaws trapped with 5 passengers.",
+    "reporter": "Citizen Phone #9876543210",
+    "trappedCount": 5,
+    "id": "inc-1788799951264-z8dp4",
+    "reportedAt": "10:22 PM",
+    "status": "Active",
+    "isUserReported": true,
+    "starred": true
+  },
+  {
+    "id": "inc-101",
+    "type": "Flood",
+    "category": "Disaster Response",
+    "severity": 92,
+    "status": "Active",
+    "location": {
+      "lat": 17.3685,
+      "lng": 78.4967
+    },
+    "description": "Musi river level rising rapidly due to high inflows. Basements and low-lying slums in Chaderghat inundated. 15 residents stranded on terraces.",
+    "casualtyEstimate": 4,
+    "trappedCount": 15,
+    "requiredResources": [
+      "NDRF Rescue Boat",
+      "SDRF Evacuation Team",
+      "Ambulance"
+    ],
+    "reportedAt": "10:04:12",
+    "reporter": "Sensor Network",
+    "aiPriority": "CRITICAL",
+    "etaResolution": 3.5,
+    "assignedVehicleId": "veh-3"
+  },
+  {
+    "id": "inc-102",
+    "type": "Chemical Leak",
+    "category": "Environmental Hazards",
+    "severity": 85,
+    "status": "Active",
+    "location": {
+      "lat": 17.5186,
+      "lng": 78.4554
+    },
+    "description": "Chlorine gas leakage detected in industrial storage tanks. Secondary thermal signatures registered. Cordoning needed.",
+    "casualtyEstimate": 8,
+    "trappedCount": 3,
+    "requiredResources": [
+      "TG-Fire Engine",
+      "SDRF Hazmat Team"
+    ],
+    "reportedAt": "10:12:45",
+    "reporter": "Satellite",
+    "aiPriority": "CRITICAL",
+    "etaResolution": 2,
+    "assignedVehicleId": "veh-2"
+  },
+  {
+    "id": "inc-103",
+    "type": "Building Collapse",
+    "category": "Disaster Response",
+    "severity": 78,
+    "status": "Pending",
+    "location": {
+      "lat": 17.4344,
+      "lng": 78.5012
+    },
+    "description": "Structural balcony failure in commercial zone. Heavy debris blocks pedestrian lanes. 8 citizens reported trapped under beams.",
+    "casualtyEstimate": 2,
+    "trappedCount": 8,
+    "requiredResources": [
+      "SDRF Rescue Team",
+      "Ambulance",
+      "Concrete Cutters"
+    ],
+    "reportedAt": "10:22:00",
+    "reporter": "Citizen SOS",
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "assignedVehicleId": null
+  },
+  {
+    "id": "inc-104",
+    "type": "Landslide",
+    "category": "Disaster Response",
+    "severity": 65,
+    "status": "Active",
+    "location": {
+      "lat": 17.33,
+      "lng": 77.9
+    },
+    "description": "Mudslide on the ghat road blocks commuter access corridors. Severed telephone cables and minor damage to passing light vehicles.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Bulldozer Unit",
+      "TG-Police Patrol"
+    ],
+    "reportedAt": "09:55:10",
+    "reporter": "Emergency Patrol",
+    "aiPriority": "HIGH",
+    "etaResolution": 1.5,
+    "assignedVehicleId": "veh-9"
+  },
+  {
+    "id": "inc-105",
+    "type": "Road Blockage",
+    "category": "Infrastructure Issues",
+    "severity": 45,
+    "status": "Resolved",
+    "location": {
+      "lat": 17.142,
+      "lng": 79.612
+    },
+    "description": "Multi-truck collision blocks Hyderabad-Vijayawada Highway (NH-65) lanes. Traffic logjam extending over 3km. Redirection completed.",
+    "casualtyEstimate": 1,
+    "trappedCount": 0,
+    "requiredResources": [
+      "TG-Police Patrol",
+      "Tow Crane Unit"
+    ],
+    "reportedAt": "09:15:30",
+    "reporter": "Citizen SOS",
+    "aiPriority": "MEDIUM",
+    "etaResolution": 0.8,
+    "assignedVehicleId": "veh-6"
+  },
+  {
+    "id": "inc-106",
+    "type": "Medical Emergency",
+    "category": "Disaster Response",
+    "severity": 50,
+    "status": "Pending",
+    "location": {
+      "lat": 17.4452,
+      "lng": 78.344
+    },
+    "description": "Citizen at shelter camp reporting signs of severe cardiac distress. Paramedic dispatch requested.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Ambulance"
+    ],
+    "reportedAt": "10:28:10",
+    "reporter": "Sensor Network",
+    "aiPriority": "HIGH",
+    "etaResolution": 1,
+    "assignedVehicleId": null
+  },
+  {
+    "id": "inc-107",
+    "type": "Power Failure",
+    "category": "Utility Failures",
+    "severity": 40,
+    "status": "Pending",
+    "location": {
+      "lat": 17.9689,
+      "lng": 79.5941
+    },
+    "description": "Grid substation transformer failure due to heavy rain. Outage affecting municipal water pumping systems.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Utility Repair Team"
+    ],
+    "reportedAt": "10:31:00",
+    "reporter": "Sensor Network",
+    "aiPriority": "MEDIUM",
+    "etaResolution": 2.5,
+    "assignedVehicleId": null
+  },
+  {
+    "id": "inc-108",
+    "type": "Snake Sighting",
+    "category": "Animal Rescue",
+    "severity": 55,
+    "status": "Reported",
+    "location": {
+      "lat": 17.4485,
+      "lng": 78.356
+    },
+    "description": "Spectacled Cobra sighted inside the kitchen pantry of a residential apartment complex. Residents have locked the door but require urgent extraction.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Wildlife Rescue Team"
+    ],
+    "reportedAt": "10:34:00",
+    "reporter": "Citizen SOS",
+    "aiPriority": "MEDIUM",
+    "etaResolution": 1.2,
+    "assignedVehicleId": null,
+    "snakeDetails": {
+      "urgency": "High",
+      "environment": "Indoors",
+      "recommendation": "Do not approach the reptile. Keep the door closed and sealed. Alerting the Telangana Forest Department Snake Rescue unit."
+    }
+  },
+  {
+    "id": "inc-109",
+    "type": "Injured Stray Animal",
+    "category": "Veterinary Services",
+    "severity": 38,
+    "status": "Pending",
+    "location": {
+      "lat": 17.439,
+      "lng": 78.498
+    },
+    "description": "Stray dog hit by a vehicle. Sighted lying on the side of the road with a hind leg fracture. Conscious but unable to move.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Veterinary Rescue Van"
+    ],
+    "reportedAt": "10:36:12",
+    "reporter": "Citizen SOS",
+    "aiPriority": "LOW",
+    "etaResolution": 2,
+    "assignedVehicleId": null,
+    "animalRescueDetails": {
+      "animalType": "Stray Dog",
+      "condition": "Hind leg fracture, highly distressed",
+      "recommendation": "Dispatch GHMC Veterinary Rescue team for splinting and relocation to safety shelter.",
+      "summary": "Injured canine requires trauma stabilization and splinting."
+    }
+  },
+  {
+    "id": "inc-110",
+    "type": "Large Pothole",
+    "category": "Infrastructure Issues",
+    "severity": 45,
+    "status": "Pending",
+    "location": {
+      "lat": 17.442,
+      "lng": 78.375
+    },
+    "description": "Deep pothole formed at high-speed commuter junction, causing minor vehicle detours and representing a high collision risk for two-wheelers.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Road Maintenance Crew"
+    ],
+    "reportedAt": "10:38:00",
+    "reporter": "Emergency Patrol",
+    "aiPriority": "LOW",
+    "etaResolution": 5,
+    "assignedVehicleId": null,
+    "civicDetails": {
+      "recommendedDepartment": "GHMC Engineering Branch",
+      "reportSummary": "Asphalt cold-mix repair dispatch scheduled."
+    }
+  },
+  {
+    "id": "inc-111",
+    "type": "Broken Traffic Signal",
+    "category": "Utility Failures",
+    "severity": 40,
+    "status": "Pending",
+    "location": {
+      "lat": 17.388,
+      "lng": 78.481
+    },
+    "description": "Traffic signals offline at major multi-arm junction. Gridlock forming rapidly with high risk of collisions. Manual traffic redirection required.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Traffic Police Patrol"
+    ],
+    "reportedAt": "10:40:15",
+    "reporter": "Sensor Network",
+    "aiPriority": "MEDIUM",
+    "etaResolution": 1,
+    "assignedVehicleId": null,
+    "civicDetails": {
+      "recommendedDepartment": "Hyderabad Traffic Police Control",
+      "reportSummary": "Traffic dispatch requested for signal restoration."
+    }
+  },
+  {
+    "id": "inc-112",
+    "type": "Fallen Electric Pole",
+    "category": "Utility Failures",
+    "severity": 62,
+    "status": "Pending",
+    "location": {
+      "lat": 17.962,
+      "lng": 79.585
+    },
+    "description": "Electric pole snapped due to strong wind gusts. Exposed high-voltage lines resting on metal guard rails. Utility shutdown initiated.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "TSSPDCL Power Repair Alpha"
+    ],
+    "reportedAt": "10:41:40",
+    "reporter": "Citizen SOS",
+    "aiPriority": "HIGH",
+    "etaResolution": 2,
+    "assignedVehicleId": null,
+    "civicDetails": {
+      "recommendedDepartment": "TSSPDCL Electrical Operations",
+      "reportSummary": "Line isolation and pole reconstruction crew dispatched."
+    }
+  },
+  {
+    "id": "inc-113",
+    "type": "Sewage Overflow",
+    "category": "Utility Failures",
+    "severity": 35,
+    "status": "Pending",
+    "location": {
+      "lat": 17.412,
+      "lng": 78.491
+    },
+    "description": "Main drainage conduit clogged with plastic refuse, causing raw effluent overflow onto main commercial street. Extreme public health hazard.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Municipal Sewage Maintenance"
+    ],
+    "reportedAt": "10:43:10",
+    "reporter": "Sensor Network",
+    "aiPriority": "LOW",
+    "etaResolution": 3,
+    "assignedVehicleId": null,
+    "civicDetails": {
+      "recommendedDepartment": "HMWS&SB Drainage Wing",
+      "reportSummary": "High-pressure jetting machine dispatched."
+    }
+  },
+  {
+    "id": "inc-114",
+    "type": "Fallen Trees",
+    "category": "Disaster Response",
+    "severity": 48,
+    "status": "Pending",
+    "location": {
+      "lat": 17.255,
+      "lng": 80.148
+    },
+    "description": "Large banyan tree uprooted across NH-365 road corridor. Single-lane bottleneck blocking outbound commercial freight transport.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Road Clearance JCB",
+      "Forest Dept Crew"
+    ],
+    "reportedAt": "10:45:00",
+    "reporter": "Emergency Patrol",
+    "aiPriority": "MEDIUM",
+    "etaResolution": 1.5,
+    "assignedVehicleId": null
+  },
+  {
+    "id": "inc-115",
+    "type": "Open Manhole",
+    "category": "Infrastructure Issues",
+    "severity": 55,
+    "status": "Pending",
+    "location": {
+      "lat": 17.441,
+      "lng": 78.4975
+    },
+    "description": "Manhole cover displaced during recent inundation flow. Obscured under waterlogging, presenting a critical risk to pedestrians and bikes.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Municipal Road Crew"
+    ],
+    "reportedAt": "10:46:25",
+    "reporter": "Citizen SOS",
+    "aiPriority": "HIGH",
+    "etaResolution": 0.5,
+    "assignedVehicleId": null,
+    "civicDetails": {
+      "recommendedDepartment": "GHMC Ward Engineering",
+      "reportSummary": "Concrete barricade placement and cover replacement."
+    }
+  },
+  {
+    "id": "inc-116",
+    "type": "Wild Animal Rescue",
+    "category": "Animal Rescue",
+    "severity": 68,
+    "status": "Pending",
+    "location": {
+      "lat": 17.321,
+      "lng": 78.411
+    },
+    "description": "Leopard sighted inside the perimeter fence of an agricultural research institute. Animal appears distressed. Forest department team requested.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Wildlife Rescue Team",
+      "Police Patrol"
+    ],
+    "reportedAt": "10:48:00",
+    "reporter": "Emergency Patrol",
+    "aiPriority": "HIGH",
+    "etaResolution": 2.5,
+    "assignedVehicleId": null
+  },
+  {
+    "id": "inc-117",
+    "type": "Missing Person",
+    "category": "Disaster Response",
+    "severity": 70,
+    "status": "Pending",
+    "location": {
+      "lat": 17.34,
+      "lng": 77.88
+    },
+    "description": "Two tourists reported missing inside forest trekking corridors. Last telemetry signal received 6 hours ago. Heavy rain hampers search.",
+    "casualtyEstimate": 0,
+    "trappedCount": 2,
+    "requiredResources": [
+      "SDRF Rescue Team",
+      "Begumpet Copter",
+      "Scout Drone"
+    ],
+    "reportedAt": "10:50:12",
+    "reporter": "Citizen SOS",
+    "aiPriority": "HIGH",
+    "etaResolution": 6,
+    "assignedVehicleId": null
+  },
+  {
+    "id": "inc-118",
+    "type": "Water Contamination",
+    "category": "Utility Failures",
+    "severity": 50,
+    "status": "Pending",
+    "location": {
+      "lat": 17.521,
+      "lng": 78.462
+    },
+    "description": "Acidic chemical discharge registered near domestic water canal. Visible blue coloration in water. Intake systems closed as precaution.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "HMWS&SB Lab Crew",
+      "SDRF Hazmat Team"
+    ],
+    "reportedAt": "10:51:50",
+    "reporter": "Sensor Network",
+    "aiPriority": "MEDIUM",
+    "etaResolution": 4,
+    "assignedVehicleId": null,
+    "civicDetails": {
+      "recommendedDepartment": "Telangana Pollution Control Board",
+      "reportSummary": "Water sampling and source sealing initiated."
+    }
+  },
+  {
+    "id": "inc-119",
+    "type": "Building Safety Hazard",
+    "category": "Infrastructure Issues",
+    "severity": 75,
+    "status": "Pending",
+    "location": {
+      "lat": 17.449,
+      "lng": 78.349
+    },
+    "description": "Deep structural fractures observed in foundational columns of a commercial building. Concrete fragments falling. Structural engineers alerted.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "GHMC Inspection Squad",
+      "Police Barricading"
+    ],
+    "reportedAt": "10:53:15",
+    "reporter": "Citizen SOS",
+    "aiPriority": "HIGH",
+    "etaResolution": 3,
+    "assignedVehicleId": null,
+    "civicDetails": {
+      "recommendedDepartment": "GHMC Town Planning Wing",
+      "reportSummary": "Immediate building evacuation and safety inspection."
+    }
+  },
+  {
+    "id": "inc-120",
+    "type": "Dead Animal Removal",
+    "category": "Veterinary Services",
+    "severity": 25,
+    "status": "Pending",
+    "location": {
+      "lat": 17.399,
+      "lng": 78.56
+    },
+    "description": "Stray cow carcass lying in the high-speed lane of the Outer Ring Road, causing sudden swerves by fast-moving traffic. Hazard removal needed.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Municipal Carcass Removal Van"
+    ],
+    "reportedAt": "10:55:00",
+    "reporter": "Sensor Network",
+    "aiPriority": "LOW",
+    "etaResolution": 2,
+    "assignedVehicleId": null,
+    "animalRescueDetails": {
+      "animalType": "Stray Cow",
+      "condition": "Deceased",
+      "recommendation": "Dispatch GHMC Sanitation Team for carcass recovery and lane clearance.",
+      "summary": "Dead animal on highway poses high-speed collision risk."
+    }
+  },
+  {
+    "id": "inc-121",
+    "type": "Evacuation Zone",
+    "category": "Disaster Response",
+    "severity": 82,
+    "status": "Pending",
+    "location": {
+      "lat": 17.508,
+      "lng": 78.511
+    },
+    "description": "Alwal lake water overflow imminent. Downstream colony sectors under warning. Evacuation squads deployed to relocate low-lying residents.",
+    "casualtyEstimate": 0,
+    "trappedCount": 45,
+    "requiredResources": [
+      "SDRF Rescue Unit",
+      "NDRF Evacuation Squad",
+      "Supply Truck"
+    ],
+    "reportedAt": "10:56:45",
+    "reporter": "Sensor Network",
+    "aiPriority": "CRITICAL",
+    "etaResolution": 5,
+    "assignedVehicleId": null
+  },
+  {
+    "id": "inc-122",
+    "type": "Dangerous Animal Attack",
+    "category": "Animal Rescue",
+    "severity": 42,
+    "status": "Pending",
+    "location": {
+      "lat": 18.435,
+      "lng": 79.135
+    },
+    "description": "Aggressive swarm of yellow-jacket wasps nested on the rafters of a primary school entrance porch. Two students reported stung.",
+    "casualtyEstimate": 2,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Wildlife Rescue Team",
+      "Ambulance"
+    ],
+    "reportedAt": "10:58:30",
+    "reporter": "Citizen SOS",
+    "aiPriority": "MEDIUM",
+    "etaResolution": 1,
+    "assignedVehicleId": null
+  },
+  {
+    "id": "inc-123",
+    "type": "Monkey Nuisance",
+    "category": "Animal Rescue",
+    "severity": 30,
+    "status": "Pending",
+    "location": {
+      "lat": 17.971,
+      "lng": 79.598
+    },
+    "description": "Troop of 30+ monkeys occupying a produce market area, grabbing supplies and aggressively chasing shoppers. Forest dept monkey traps requested.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Wildlife Rescue Team"
+    ],
+    "reportedAt": "11:00:00",
+    "reporter": "Citizen SOS",
+    "aiPriority": "LOW",
+    "etaResolution": 4,
+    "assignedVehicleId": null
+  },
+  {
+    "id": "inc-124",
+    "type": "Cattle on Road",
+    "category": "Public Safety",
+    "severity": 38,
+    "status": "Pending",
+    "location": {
+      "lat": 17.218,
+      "lng": 78.435
+    },
+    "description": "Stray cattle herd of 15 cows resting on high-speed expressway lanes under the flyover. Heavy fog makes detection difficult.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "GHMC Animal Control Van",
+      "Highway Patrol"
+    ],
+    "reportedAt": "11:02:10",
+    "reporter": "Emergency Patrol",
+    "aiPriority": "MEDIUM",
+    "etaResolution": 1.2,
+    "assignedVehicleId": null,
+    "civicDetails": {
+      "recommendedDepartment": "GHMC Veterinary Section",
+      "reportSummary": "Cattle herd retrieval and highway clearing."
+    }
+  },
+  {
+    "id": "inc-125",
+    "type": "POLICE_SOS",
+    "category": "Public Safety",
+    "severity": 65,
+    "status": "Pending",
+    "location": {
+      "lat": 17.386,
+      "lng": 78.487
+    },
+    "description": "Police emergency assistance requested. Rapid crowd build-up causing localized traffic blockages. Barricading teams requested.",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Police Patrol",
+      "Traffic Police"
+    ],
+    "reportedAt": "11:04:00",
+    "reporter": "Emergency Patrol",
+    "aiPriority": "HIGH",
+    "etaResolution": 2,
+    "assignedVehicleId": null
+  }
+]

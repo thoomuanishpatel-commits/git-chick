@@ -314,7 +314,7 @@ export default function CommandMap({
   }, []);
 
   // Icon Generators
-  const createIncidentIcon = useCallback((type: string, severity: number) => {
+  const createIncidentIcon = useCallback((type: string, severity: number, isUserReported?: boolean) => {
     let color = 'bg-red-500 shadow-[0_0_15px_#ef4444]';
     if (severity <= 50) {
       color = 'bg-yellow-500 shadow-[0_0_15px_#eab308]';
@@ -362,11 +362,16 @@ export default function CommandMap({
 
     return L.divIcon({
       html: `
-        <div class="relative flex items-center justify-center w-8 h-8">
+        <div class="relative flex items-center justify-center w-8 h-8 cursor-pointer">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${color}"></span>
-          <div class="relative flex rounded-full h-6 w-6 ${color} border border-white/20 items-center justify-center text-[10px] font-bold text-white">
+          <div class="relative flex rounded-full h-6 w-6 ${color} border border-white/20 items-center justify-center text-[10px] font-bold text-white shadow-md">
             ${symbol}
           </div>
+          ${isUserReported ? `
+            <div class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-amber-400 rounded-full border border-black flex items-center justify-center text-[8px] font-extrabold shadow-[0_0_8px_#f59e0b] animate-bounce z-20">
+              ⭐
+            </div>
+          ` : ''}
         </div>
       `,
       className: 'custom-div-icon',
@@ -498,9 +503,10 @@ export default function CommandMap({
   const incidentIcons = useMemo(() => {
     const cache: Record<string, L.DivIcon> = {};
     incidents.forEach((inc) => {
-      const key = `${inc.type}-${inc.severity}`;
+      const isCitizen = Boolean(inc.isUserReported || inc.starred);
+      const key = `${inc.type}-${inc.severity}-${isCitizen ? 'user' : 'auto'}`;
       if (!cache[key]) {
-        cache[key] = createIncidentIcon(inc.type, inc.severity);
+        cache[key] = createIncidentIcon(inc.type, inc.severity, isCitizen);
       }
     });
     return cache;
@@ -1102,13 +1108,18 @@ export default function CommandMap({
           <Marker
             key={inc.id}
             position={[inc.location.lat, inc.location.lng]}
-            icon={incidentIcons[`${inc.type}-${inc.severity}`] || closureIcon}
+            icon={incidentIcons[`${inc.type}-${inc.severity}-${(inc.isUserReported || inc.starred) ? 'user' : 'auto'}`] || closureIcon}
             eventHandlers={{
               click: () => onSelectIncident(inc),
             }}
           >
             <Popup>
               <div className="w-60 text-[10px] font-mono space-y-1.5 text-zinc-300">
+                {(inc.isUserReported || inc.starred) && (
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[8px] font-extrabold shadow-sm">
+                    <span>⭐ CITIZEN REPORTED EMERGENCY</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center border-b border-white/10 pb-1">
                   <span className="font-bold text-red-400 uppercase">{inc.type} Scene</span>
                   <span className="bg-white/10 px-1 rounded text-[8px]">PRIORITY: {inc.aiPriority}</span>

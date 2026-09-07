@@ -104,6 +104,10 @@ export interface Incident {
   resolutionSummary?: string;
   addressContext?: string;
   shareUrl?: string;
+
+  // Citizen report tracking & admin star marks
+  isUserReported?: boolean;
+  starred?: boolean;
 }
 
 export type VehicleType =

@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   FileText, Download, MapPin, Search, CheckCircle2, 
   AlertTriangle, Navigation, Copy, Check, Filter, 
-  Calendar, Shield, ExternalLink, Printer, Database, Clock
+  Calendar, Shield, ExternalLink, Printer, Database, Clock, Star
 } from 'lucide-react';
 import { Incident } from '../utils/mockData';
 
@@ -24,6 +24,7 @@ export default function SavedLocationsArchive({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'resolved'>('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [onlyCitizenReports, setOnlyCitizenReports] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Statistics calculation
@@ -45,6 +46,9 @@ export default function SavedLocationsArchive({
 
       // Category filter
       if (categoryFilter !== 'all' && inc.category !== categoryFilter) return false;
+
+      // Citizen reports filter
+      if (onlyCitizenReports && !inc.isUserReported && !inc.starred) return false;
 
       // Search query
       if (searchQuery.trim()) {
@@ -317,6 +321,20 @@ export default function SavedLocationsArchive({
           <option value="Utility Failures">Utility Failures</option>
           <option value="Environmental Hazards">Environmental Hazards</option>
         </select>
+
+        {/* Citizen Reports Star Filter */}
+        <button
+          type="button"
+          onClick={() => setOnlyCitizenReports(!onlyCitizenReports)}
+          className={`px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase transition flex items-center gap-1.5 border cursor-pointer ${
+            onlyCitizenReports
+              ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+              : 'bg-zinc-900/60 text-amber-300/80 border-amber-500/20 hover:border-amber-500/40'
+          }`}
+        >
+          <Star className={`w-3 h-3 ${onlyCitizenReports ? 'fill-black text-black' : 'text-amber-400 fill-amber-400'}`} />
+          <span>⭐ Citizen Reports Only</span>
+        </button>
       </div>
 
       {/* Incident Records Feed */}
@@ -360,10 +378,16 @@ export default function SavedLocationsArchive({
                        inc.type === 'POLICE_SOS' ? '🚨' : '⚠️'}
                     </span>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="font-bold text-white uppercase text-xs tracking-wide">
                           {inc.type}
                         </span>
+                        {(inc.isUserReported || inc.starred) && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[8px] font-extrabold flex items-center gap-1 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                            <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                            <span>⭐ USER REPORT</span>
+                          </span>
+                        )}
                         <span className="font-mono text-[8px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/10">
                           {inc.id}
                         </span>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Truck, Compass, Settings, Battery, ShieldCheck, Package, AlertTriangle, MapPin, ExternalLink, Copy } from 'lucide-react';
+import { Truck, Compass, Settings, Battery, ShieldCheck, Package, AlertTriangle, MapPin, ExternalLink, Copy, Star } from 'lucide-react';
 import { Incident, Vehicle, Warehouse, Shelter, Hospital } from '../utils/mockData';
 import { recommendVehiclesForIncident, rankWarehousesForSupply } from '../utils/routing';
 
@@ -168,6 +168,7 @@ export default function RescuePlanner({
                 >
                   {[
                     'Disasters',
+                    '⭐ Citizen Reports',
                     'Police SOS',
                     'All',
                     'Disaster Response',
@@ -192,6 +193,7 @@ export default function RescuePlanner({
                     .filter((inc) => inc.status !== 'Resolved')
                     .map((inc) => {
                       const isSelected = selectedIncident?.id === inc.id;
+                      const isCitizenReport = inc.isUserReported || inc.starred;
                       return (
                         <button
                           key={inc.id}
@@ -199,10 +201,17 @@ export default function RescuePlanner({
                           className={`w-full text-left p-3 rounded-lg border font-mono transition flex justify-between items-center relative overflow-hidden ${
                             isSelected
                               ? 'bg-cyan-950/40 border-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.18)] ring-1 ring-cyan-400/30'
+                              : isCitizenReport
+                              ? 'bg-amber-950/20 border-amber-500/30 hover:border-amber-500/50'
                               : 'bg-white/5 border-white/5 hover:border-slate-700'
                           }`}
                         >
-                          {inc.needsSOSValidation ? (
+                          {isCitizenReport ? (
+                            <div className="absolute top-0 right-0 bg-amber-500 text-black font-extrabold px-1.5 py-0.5 rounded-bl text-[7px] uppercase tracking-wider flex items-center gap-0.5 shadow-sm z-10">
+                              <Star className="w-2.5 h-2.5 fill-black" />
+                              <span>Citizen Report</span>
+                            </div>
+                          ) : inc.needsSOSValidation ? (
                             <div className="absolute top-0 right-0 bg-red-600 text-white font-bold px-1.5 py-0.5 rounded-bl text-[6px] uppercase tracking-widest animate-pulse flex items-center gap-1 z-10">
                               <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
                               Unverified SOS
@@ -214,7 +223,11 @@ export default function RescuePlanner({
                           ) : null}
                           <div className="space-y-1">
                             <div className="flex items-center space-x-2">
-                              <span className="w-2 h-2 rounded-full bg-emergency-red animate-pulse"></span>
+                              {isCitizenReport ? (
+                                <Star className="w-3 h-3 text-amber-400 fill-amber-400 animate-pulse" />
+                              ) : (
+                                <span className="w-2 h-2 rounded-full bg-emergency-red animate-pulse"></span>
+                              )}
                               <span className="text-xs font-bold uppercase text-white">{inc.type}</span>
                             </div>
                             <p className="text-[10px] text-slate-400 truncate max-w-xs">{inc.description}</p>
@@ -244,6 +257,13 @@ export default function RescuePlanner({
                 <div className="flex-1 flex flex-col justify-between font-mono">
                   <div className="space-y-3">
                     <div className="bg-black/30 border border-white/5 p-3 rounded-lg space-y-2 text-xs">
+                      {(selectedIncident.isUserReported || selectedIncident.starred) && (
+                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
+                          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 animate-pulse flex-shrink-0" />
+                          <span>⭐ VERIFIED CITIZEN REPORT — Field user distress transmission</span>
+                        </div>
+                      )}
+
                       <div className="flex justify-between items-center">
                         <span className="text-cyan-400 font-bold uppercase">{selectedIncident.type} Scene</span>
                         <span className="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800/40 text-cyan-300 text-[8px] font-bold uppercase tracking-wider">
