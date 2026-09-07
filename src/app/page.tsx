@@ -314,11 +314,44 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
         setCurrentView('admin');
       }
 
-      if (targetId && incidents.length > 0) {
+      if (targetId) {
         const found = incidents.find((i) => i.id === targetId);
         if (found) {
           setSelectedIncident(found);
           addNotification(`TELEMETRY DIRECT LINK: Loaded coordinates for ${found.type} (${found.id}).`, 'info');
+        } else {
+          // Ingest emergency report from direct link parameters
+          const type = params.get('type');
+          const lat = parseFloat(params.get('lat') || '');
+          const lng = parseFloat(params.get('lng') || '');
+          const desc = params.get('desc');
+          const addr = params.get('addr');
+          const sev = parseInt(params.get('sev') || '75', 10);
+          if (type && !isNaN(lat) && !isNaN(lng)) {
+            const urlInc: Incident = {
+              id: targetId,
+              type: type as any,
+              category: 'Disaster Response',
+              severity: sev,
+              location: { lat, lng },
+              addressContext: addr || 'Citizen Incident Sector',
+              description: desc || 'Direct telemetry report',
+              casualtyEstimate: 0,
+              trappedCount: 0,
+              requiredResources: ['First Responder Unit'],
+              reporter: 'Citizen Portal',
+              needsSOSValidation: false,
+              aiPriority: 'HIGH',
+              etaResolution: 4,
+              status: 'Active',
+              isUserReported: true,
+              starred: true,
+              reportedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            handleAddIncident(urlInc);
+            setSelectedIncident(urlInc);
+            addNotification(`DIRECT LINK INGESTION: Received emergency report for ${type} in ${addr || 'Balaji Nagar'}.`, 'emergency');
+          }
         }
       }
     } catch (err) {

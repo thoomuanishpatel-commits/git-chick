@@ -207,10 +207,21 @@ export function useSimulation() {
           const serverIncidents: Incident[] = data.incidents;
 
           setIncidents((current) => {
-            // Check if client and server already match completely
-            if (current.length === serverIncidents.length) {
+            // Protect local user-reported incidents so a cold/read-only server never wipes them out
+            const serverIds = new Set(serverIncidents.map((s) => s.id));
+            const unpersistedLocalReports = current.filter(
+              (c) => (c.isUserReported || c.starred) && !serverIds.has(c.id)
+            );
+
+            // Merge unpersisted local reports at the front
+            const merged = unpersistedLocalReports.length > 0
+              ? [...unpersistedLocalReports, ...serverIncidents]
+              : serverIncidents;
+
+            // Check if client and merged already match completely
+            if (current.length === merged.length) {
               const isExactMatch = current.every((c, idx) => {
-                const s = serverIncidents[idx];
+                const s = merged[idx];
                 return (
                   s &&
                   c.id === s.id &&
@@ -235,9 +246,19 @@ export function useSimulation() {
               );
             }
 
-            // Server database is the authoritative truth for all devices
-            persistIncidents(serverIncidents);
-            return serverIncidents;
+            // If we have unpersisted local reports, re-send to server in the background
+            if (unpersistedLocalReports.length > 0) {
+              for (const rep of unpersistedLocalReports) {
+                fetch('/api/incidents', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(rep)
+                }).catch(() => {});
+              }
+            }
+
+            persistIncidents(merged);
+            return merged;
           });
         }
       } catch (e) {

@@ -9,51 +9,157 @@ const DATA_FILE = path.join(DATA_DIR, 'incidents.json');
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-function ensureDataFile(): Incident[] {
+// Upstash Redis / Vercel KV Configuration (Native Vercel Storage)
+const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
+const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const REDIS_KEY = 'resqai_disaster_incidents';
+
+// In-Memory Global Cache across warm lambda invocations
+declare global {
+  var __resqai_incidents_memory: Incident[] | undefined;
+}
+
+async function getFromRedis(): Promise<Incident[] | null> {
+  if (!REDIS_URL || !REDIS_TOKEN) return null;
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    const res = await fetch(`${REDIS_URL}/get/${REDIS_KEY}`, {
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+      cache: 'no-store'
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json && json.result) {
+      const data = typeof json.result === 'string' ? JSON.parse(json.result) : json.result;
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (err) {
+    console.error('[API /api/incidents] Redis read error:', err);
+  }
+  return null;
+}
+
+async function saveToRedis(incidents: Incident[]): Promise<boolean> {
+  if (!REDIS_URL || !REDIS_TOKEN) return false;
+  try {
+    const res = await fetch(`${REDIS_URL}/set/${REDIS_KEY}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${REDIS_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(incidents),
+      cache: 'no-store'
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('[API /api/incidents] Redis write error:', err);
+  }
+  return false;
+}
+
+function getStoragePath(): string {
+  // If running in Vercel or AWS Lambda, /tmp is writable; process.cwd() is read-only
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return path.join('/tmp', 'incidents.json');
+  }
+  return DATA_FILE;
+}
+
+function ensureDataFile(): Incident[] {
+  // 1. Check in-memory cache first
+  if (globalThis.__resqai_incidents_memory && Array.isArray(globalThis.__resqai_incidents_memory) && globalThis.__resqai_incidents_memory.length > 0) {
+    return globalThis.__resqai_incidents_memory;
+  }
+
+  const filePath = getStoragePath();
+
+  try {
+    // If on Vercel and /tmp/incidents.json doesn't exist yet, seed from build-time DATA_FILE
+    if (filePath !== DATA_FILE && !fs.existsSync(filePath)) {
+      let seedData = defaultIncidents;
+      if (fs.existsSync(DATA_FILE)) {
+        try {
+          const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            seedData = parsed;
+          }
+        } catch (e) {}
+      }
+      try {
+        fs.writeFileSync(filePath, JSON.stringify(seedData, null, 2), 'utf-8');
+      } catch (e) {}
+      globalThis.__resqai_incidents_memory = seedData;
+      return seedData;
     }
 
-    if (!fs.existsSync(DATA_FILE)) {
-      // Seed with initial mock incidents
-      fs.writeFileSync(DATA_FILE, JSON.stringify(defaultIncidents, null, 2), 'utf-8');
+    if (!fs.existsSync(filePath)) {
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(filePath, JSON.stringify(defaultIncidents, null, 2), 'utf-8');
+      globalThis.__resqai_incidents_memory = defaultIncidents;
       return defaultIncidents;
     }
 
-    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+    const raw = fs.readFileSync(filePath, 'utf-8');
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
+      globalThis.__resqai_incidents_memory = parsed;
       return parsed;
     }
-    return defaultIncidents;
   } catch (err) {
-    console.error('[API /api/incidents] Failed to read data file:', err);
-    return defaultIncidents;
+    console.error('[API /api/incidents] Read error:', err);
   }
+
+  globalThis.__resqai_incidents_memory = defaultIncidents;
+  return defaultIncidents;
 }
 
 function saveDataFile(incidents: Incident[]) {
+  // Always update in-memory cache
+  globalThis.__resqai_incidents_memory = incidents;
+
+  const filePath = getStoragePath();
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
-    const tempFile = `${DATA_FILE}.tmp.${Date.now()}`;
+    const tempFile = `${filePath}.tmp.${Date.now()}`;
     fs.writeFileSync(tempFile, JSON.stringify(incidents, null, 2), 'utf-8');
-    fs.renameSync(tempFile, DATA_FILE);
+    fs.renameSync(tempFile, filePath);
   } catch (err) {
     console.error('[API /api/incidents] Failed to write data file:', err);
   }
 }
 
+async function loadIncidents(): Promise<Incident[]> {
+  // Check Cloud Redis if configured
+  const redisData = await getFromRedis();
+  if (redisData && redisData.length > 0) {
+    globalThis.__resqai_incidents_memory = redisData;
+    return redisData;
+  }
+  return ensureDataFile();
+}
+
+async function saveIncidents(incidents: Incident[]): Promise<void> {
+  saveDataFile(incidents);
+  // Persist to Cloud Redis if configured
+  await saveToRedis(incidents);
+}
+
 // GET /api/incidents - Authoritative live incident feed with strictly disabled caching
 export async function GET() {
-  const incidents = ensureDataFile();
+  const incidents = await loadIncidents();
   return NextResponse.json(
     {
       success: true,
       count: incidents.length,
-      incidents
+      incidents,
+      storage: REDIS_URL ? 'cloud-redis' : process.env.VERCEL ? 'vercel-tmp' : 'local-disk'
     },
     {
       headers: {
@@ -74,7 +180,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Invalid incident payload' }, { status: 400 });
     }
 
-    const current = ensureDataFile();
+    const current = await loadIncidents();
 
     const newIncident: Incident = {
       ...body,
@@ -99,7 +205,7 @@ export async function POST(req: Request) {
       updated = [newIncident, ...current];
     }
 
-    saveDataFile(updated);
+    await saveIncidents(updated);
 
     return NextResponse.json({
       success: true,
@@ -125,7 +231,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ success: false, error: 'Missing incident ID' }, { status: 400 });
     }
 
-    const current = ensureDataFile();
+    const current = await loadIncidents();
     const index = current.findIndex(i => i.id === body.id);
 
     if (index === -1) {
@@ -139,7 +245,7 @@ export async function PATCH(req: Request) {
         starred: body.starred ?? true
       };
       const updated = [newInc, ...current];
-      saveDataFile(updated);
+      await saveIncidents(updated);
       return NextResponse.json({ success: true, incident: newInc, count: updated.length, incidents: updated });
     }
 
@@ -156,7 +262,7 @@ export async function PATCH(req: Request) {
 
     const updated = [...current];
     updated[index] = merged;
-    saveDataFile(updated);
+    await saveIncidents(updated);
 
     return NextResponse.json({
       success: true,
@@ -183,9 +289,9 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, error: 'Missing incident ID' }, { status: 400 });
     }
 
-    const current = ensureDataFile();
+    const current = await loadIncidents();
     const updated = current.filter(i => i.id !== id);
-    saveDataFile(updated);
+    await saveIncidents(updated);
 
     return NextResponse.json({
       success: true,

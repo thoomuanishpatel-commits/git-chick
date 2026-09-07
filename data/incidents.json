@@ -2,6 +2,62 @@
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
+    "severity": 79,
+    "location": {
+      "lat": 17.47218,
+      "lng": 78.42259
+    },
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad, Kukatpally mandal",
+    "description": "CITIZEN SOS REPORT: Poi",
+    "casualtyEstimate": 0,
+    "trappedCount": 2,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Dispatched",
+    "id": "inc-1788806236288-r0z0",
+    "reportedAt": "00:07:16",
+    "isUserReported": true,
+    "starred": true,
+    "assignedVehicleId": "veh-53"
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
+    "severity": 76,
+    "location": {
+      "lat": 17.47218,
+      "lng": 78.42259
+    },
+    "addressContext": "Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad, Kukatpally mandal",
+    "description": "CITIZEN SOS REPORT: Hi",
+    "casualtyEstimate": 0,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Active",
+    "id": "inc-1788806225569-aiwg",
+    "reportedAt": "00:07:05",
+    "isUserReported": true,
+    "starred": true,
+    "assignedVehicleId": "veh-142",
+    "resolvedAt": "00:07:12",
+    "resolutionSummary": "Operation concluded at 00:07:12. Hazard neutralized, victims evacuated to emergency shelter."
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
     "severity": 82,
     "location": {
       "lat": 17.47218,

@@ -105,7 +105,18 @@ export default function CitizenIncidentTracker({
   // Copy shareable disaster link
   const handleCopyLink = (inc: Incident) => {
     if (typeof window === 'undefined') return;
-    const shareUrl = `${window.location.origin}${window.location.pathname}?incident=${inc.id}`;
+    const params = new URLSearchParams();
+    params.set('incident', inc.id);
+    if (inc.type) params.set('type', inc.type);
+    if (inc.location) {
+      params.set('lat', inc.location.lat.toString());
+      params.set('lng', inc.location.lng.toString());
+    }
+    if (inc.severity) params.set('sev', inc.severity.toString());
+    if (inc.addressContext) params.set('addr', inc.addressContext);
+    if (inc.description) params.set('desc', inc.description);
+
+    const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
     const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${inc.location.lat},${inc.location.lng}`;
     const fullText = `🚨 RESQAI DISASTER ALERT - ${inc.type}\nSector: ${inc.addressContext || `${inc.location.lat.toFixed(4)}°N, ${inc.location.lng.toFixed(4)}°E`}\nLive Portal: ${shareUrl}\nGoogle Maps Navigation: ${gmapsUrl}`;
     navigator.clipboard.writeText(fullText).then(() => {
