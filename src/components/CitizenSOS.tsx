@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Send, MapPin, Camera, HelpCircle, Shield, AlertTriangle, Loader2, CheckCircle2, RefreshCw, Lock } from 'lucide-react';
 import { Incident } from '../utils/mockData';
 
@@ -94,10 +94,17 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
   const [description, setDescription] = useState('');
   const [locationName, setLocationName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLocating, setIsLocating] = useState(true);
+  const [isLocating, setIsLocating] = useState(false);
   const [locationLocked, setLocationLocked] = useState(false);
   const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
   const [gpsSimulated, setGpsSimulated] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Ref locks to guarantee geolocation is only acquired ONCE and never locked again in a loop
+  const hasLockedRef = useRef(false);
+  const onLocationLockRef = useRef(onLocationLock);
+  onLocationLockRef.current = onLocationLock;
+  const addNotificationRef = useRef(addNotification);
+  addNotificationRef.current = addNotification;
 
   // Real photo upload states
   const [photoName, setPhotoName] = useState('');
@@ -107,7 +114,12 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<any>(null);
 
-  const handleDetectLocation = useCallback((silent = false) => {
+  const handleDetectLocation = useCallback((force = false, silent = false) => {
+    // If already locked and user did not explicitly force recalibration, exit immediately
+    if (hasLockedRef.current && !force) {
+      return;
+    }
+
     setIsLocating(true);
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -115,14 +127,15 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           const accuracy = Math.round(position.coords.accuracy || 4);
+          hasLockedRef.current = true;
           setGpsSimulated({ lat, lng });
           setLocationLocked(true);
           setIsLocating(false);
           setLocationAccuracy(accuracy);
           setLocationName(`Auto-Locked: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-          onLocationLock?.({ lat, lng });
+          onLocationLockRef.current?.({ lat, lng });
           if (!silent) {
-            addNotification(`GPS locked: ${lat.toFixed(4)}, ${lng.toFixed(4)} (±${accuracy}m precision)`, 'success');
+            addNotificationRef.current?.(`GPS locked: ${lat.toFixed(4)}, ${lng.toFixed(4)} (±${accuracy}m precision)`, 'success');
           }
 
           // Optional reverse geocoding to human-readable locality
@@ -149,33 +162,37 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
         () => {
           const lat = 17.3850 + (Math.random() - 0.5) * 0.015;
           const lng = 78.4867 + (Math.random() - 0.5) * 0.015;
+          hasLockedRef.current = true;
           setGpsSimulated({ lat, lng });
           setLocationLocked(true);
           setIsLocating(false);
           setLocationAccuracy(12);
           setLocationName(`Auto-Locked: Hyderabad Sector (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
-          onLocationLock?.({ lat, lng });
+          onLocationLockRef.current?.({ lat, lng });
           if (!silent) {
-            addNotification('GPS permission restricted. Auto-locked to Hyderabad sector coordinates.', 'warning');
+            addNotificationRef.current?.('GPS permission restricted. Auto-locked to Hyderabad sector coordinates.', 'warning');
           }
         },
-        { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
       );
     } else {
       const lat = 17.3850 + (Math.random() - 0.5) * 0.015;
       const lng = 78.4867 + (Math.random() - 0.5) * 0.015;
+      hasLockedRef.current = true;
       setGpsSimulated({ lat, lng });
       setLocationLocked(true);
       setIsLocating(false);
       setLocationAccuracy(15);
       setLocationName(`Auto-Locked: Hyderabad Sector (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
-      onLocationLock?.({ lat, lng });
+      onLocationLockRef.current?.({ lat, lng });
     }
-  }, [addNotification, onLocationLock]);
+  }, []);
 
-  // Automatically acquire and lock GPS location the moment the citizen opens/reports an issue
+  // Automatically acquire and lock GPS location strictly ONCE on mount
   useEffect(() => {
-    handleDetectLocation(true);
+    if (!hasLockedRef.current) {
+      handleDetectLocation(false, true);
+    }
   }, [handleDetectLocation]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -502,7 +519,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
               </div>
               <button
                 type="button"
-                onClick={() => handleDetectLocation(false)}
+                onClick={() => handleDetectLocation(true, false)}
                 disabled={isLocating}
                 title="Click to recalibrate GPS location"
                 className={`w-full py-2 flex items-center justify-center space-x-1.5 border rounded-lg transition ${
@@ -583,7 +600,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleDetectLocation(false)}
+                  onClick={() => handleDetectLocation(true, false)}
                   className="flex items-center space-x-1 text-slate-400 hover:text-emerald-300 transition text-[9px]"
                   title="Recalibrate GPS"
                 >

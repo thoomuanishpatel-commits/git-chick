@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   Search, ArrowLeft, Clock, Shield, CheckCircle2, 
   MapPin, Truck, AlertTriangle, Users, HeartHandshake,
@@ -50,19 +50,30 @@ export default function CitizenIncidentTracker({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Obtain live browser location for distance calculations
+  const handleChildLocationLock = useCallback((loc: { lat: number; lng: number } | null) => {
+    if (!loc) return;
+    setUserLocation(prev => {
+      if (prev && Math.abs(prev.lat - loc.lat) < 0.00001 && Math.abs(prev.lng - loc.lng) < 0.00001) {
+        return prev;
+      }
+      return loc;
+    });
+    onLocationLock?.(loc);
+  }, [onLocationLock]);
+
+  // Obtain live browser location for distance calculations only if not already set
   useEffect(() => {
-    if (typeof window !== 'undefined' && navigator.geolocation) {
+    if (!userLocation && typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setUserLocation({
+          setUserLocation(prev => prev || {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude
           });
         },
         () => {
           // Fallback to central Hyderabad coordinates
-          setUserLocation({ lat: 17.3850, lng: 78.4867 });
+          setUserLocation(prev => prev || { lat: 17.3850, lng: 78.4867 });
         },
         { enableHighAccuracy: false, timeout: 4000 }
       );
@@ -485,10 +496,7 @@ export default function CitizenIncidentTracker({
             <CitizenSOS 
               onAddIncident={onAddIncident}
               addNotification={addNotification}
-              onLocationLock={(loc) => {
-                if (loc) setUserLocation(loc);
-                onLocationLock?.(loc);
-              }}
+              onLocationLock={handleChildLocationLock}
               compact={true}
             />
           </div>

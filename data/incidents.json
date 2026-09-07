@@ -2,6 +2,84 @@
   {
     "type": "Rescue Request",
     "category": "Disaster Response",
+    "severity": 77,
+    "location": {
+      "lat": 17.4721927596755,
+      "lng": 78.4226285714303
+    },
+    "addressContext": "Auto-Locked: 17.47219, 78.42263",
+    "description": "CITIZEN SOS REPORT: efh. (Location: Auto-Locked: 17.47219, 78.42263)",
+    "casualtyEstimate": 2,
+    "trappedCount": 0,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Pending",
+    "id": "inc-1788801149815-wbk2",
+    "reportedAt": "22:42:29",
+    "isUserReported": true,
+    "starred": true
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
+    "severity": 71,
+    "location": {
+      "lat": 17.472220322448347,
+      "lng": 78.42263354016349
+    },
+    "addressContext": "Auto-Locked: 17.47222, 78.42263",
+    "description": "CITIZEN SOS REPORT: tt. (Location: Auto-Locked: 17.47222, 78.42263)",
+    "casualtyEstimate": 2,
+    "trappedCount": 1,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Pending",
+    "id": "inc-1788800739323-8ybj",
+    "reportedAt": "22:35:39",
+    "isUserReported": true,
+    "starred": true
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
+    "severity": 83,
+    "location": {
+      "lat": 17.472260761251892,
+      "lng": 78.42263829677337
+    },
+    "addressContext": "Auto-Locked: 17.47226, 78.42264",
+    "description": "CITIZEN SOS REPORT: ttt. (Location: Auto-Locked: 17.47226, 78.42264)",
+    "casualtyEstimate": 1,
+    "trappedCount": 1,
+    "requiredResources": [
+      "Urban Search & Rescue Unit",
+      "Ambulance"
+    ],
+    "reporter": "Citizen Portal",
+    "needsSOSValidation": true,
+    "aiPriority": "HIGH",
+    "etaResolution": 4,
+    "status": "Pending",
+    "id": "inc-1788800698490-8zrb",
+    "reportedAt": "22:34:58",
+    "isUserReported": true,
+    "starred": true
+  },
+  {
+    "type": "Rescue Request",
+    "category": "Disaster Response",
     "severity": 70,
     "location": {
       "lat": 17.382525154026258,

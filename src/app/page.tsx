@@ -164,6 +164,15 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [userLiveLocation, setUserLiveLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const handleUserLiveLocationLock = useCallback((loc: { lat: number; lng: number } | null) => {
+    if (!loc) return;
+    setUserLiveLocation(prev => {
+      if (prev && Math.abs(prev.lat - loc.lat) < 0.00001 && Math.abs(prev.lng - loc.lng) < 0.00001) {
+        return prev;
+      }
+      return loc;
+    });
+  }, []);
 
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   useEffect(() => {
@@ -1158,7 +1167,7 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
                 }}
                 addNotification={addNotification}
                 onUpdateIncident={handleUpdateIncident}
-                onLocationLock={setUserLiveLocation}
+                onLocationLock={handleUserLiveLocationLock}
               />
             </div>
 
@@ -2208,7 +2217,7 @@ function HomeDashboard({ isDemoMode = false }: { isDemoMode?: boolean }) {
                             }
                           }}
                           addNotification={addNotification}
-                          onLocationLock={setUserLiveLocation}
+                          onLocationLock={handleUserLiveLocationLock}
                           compact={true}
                         />
                       </div>
