@@ -215,8 +215,9 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
         }
       } catch (e) {}
     }
-    return { lat: 17.47218, lng: 78.42259 };
+    return null;
   });
+  const [pinnedLocation, setPinnedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const handleUserLiveLocationLock = useCallback((loc: { lat: number; lng: number } | null) => {
     if (!loc) return;
     setUserLiveLocation(prev => {
@@ -1247,6 +1248,8 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
                 onAddIncident={(inc) => {
                   const newInc = handleAddIncident({
                     ...inc,
+                    isUserReported: true,
+                    starred: true,
                     reporter: 'Citizen Portal'
                   });
                   if (newInc) {
@@ -1256,7 +1259,7 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
                 addNotification={addNotification}
                 onUpdateIncident={handleUpdateIncident}
                 onLocationLock={handleUserLiveLocationLock}
-                overrideLocation={userLiveLocation}
+                overrideLocation={pinnedLocation}
               />
             </div>
 
@@ -1392,10 +1395,10 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
                   onSelectVehicle={() => {}}
                   forecastHours={forecastHours}
                   onForecastHoursChange={setForecastHours}
-                  userLocation={userLiveLocation}
+                  userLocation={userLiveLocation || { lat: 17.47218, lng: 78.42259 }}
                   hideUserLocationMarker={true}
                   onMapClick={(loc) => {
-                    setUserLiveLocation(loc);
+                    setPinnedLocation(loc);
                     addNotification(`Disaster coordinates pinned at ${loc.lat.toFixed(4)}°N, ${loc.lng.toFixed(4)}°E`, 'info');
                   }}
                 />
@@ -1670,7 +1673,7 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
           onSelectVehicle={setSelectedVehicle}
           forecastHours={forecastHours}
           onForecastHoursChange={setForecastHours}
-          userLocation={userLiveLocation}
+          userLocation={userLiveLocation || { lat: 17.47218, lng: 78.42259 }}
         />
 
 

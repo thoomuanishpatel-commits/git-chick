@@ -171,6 +171,11 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       return;
     }
 
+    if (force) {
+      hasLockedRef.current = false;
+      setIsPinned(false);
+    }
+
     setIsLocating(true);
     setLocationName('Acquiring high-accuracy GPS coordinates...');
 
@@ -385,11 +390,44 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       }
     }
 
-    // Determine coordinates
-    const finalLoc = gpsSimulated || {
-      lat: DEFAULT_USER_ZONE.lat + (Math.random() - 0.5) * 0.001,
-      lng: DEFAULT_USER_ZONE.lng + (Math.random() - 0.5) * 0.001
-    };
+    // Determine coordinates with high-assurance real GPS acquisition
+    let finalLoc = gpsSimulated;
+
+    // If GPS is not locked yet (e.g. user clicked submit quickly upon opening), wait up to 6s for device GPS
+    if (!finalLoc && typeof window !== 'undefined' && navigator.geolocation) {
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 6000,
+            maximumAge: 0
+          });
+        });
+        finalLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setGpsSimulated(finalLoc);
+      } catch (e) {}
+    }
+
+    // Check device local storage cache if available
+    if (!finalLoc) {
+      try {
+        const cached = localStorage.getItem('resqai_exact_location');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.lat && parsed.lng) {
+            finalLoc = { lat: parsed.lat, lng: parsed.lng };
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Ultimate fallback if GPS denied and no cache
+    if (!finalLoc) {
+      finalLoc = {
+        lat: DEFAULT_USER_ZONE.lat + (Math.random() - 0.5) * 0.001,
+        lng: DEFAULT_USER_ZONE.lng + (Math.random() - 0.5) * 0.001
+      };
+    }
 
     // Map Citizen SOS Category to Incident Type and Category
     const descLower = description.toLowerCase();
@@ -498,7 +536,11 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       };
     }
 
-    const finalAddress = locationName || DEFAULT_USER_ZONE.name;
+    let finalAddress = locationName;
+    if (!finalAddress || finalAddress.includes('Acquiring') || finalAddress.includes('Verifying')) {
+      finalAddress = await reverseGeocode(finalLoc.lat, finalLoc.lng);
+      setLocationName(finalAddress);
+    }
 
     onAddIncident({
       type: mappedType,
@@ -513,6 +555,8 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       trappedCount: parsedAiResult?.trappedCount ?? Math.round(Math.random() * 2),
       requiredResources,
       reporter: 'Citizen SOS',
+      isUserReported: true,
+      starred: true,
       needsSOSValidation: !parsedAiResult, // Already AI verified, no EOC human verification needed
       aiPriority: 'HIGH',
       etaResolution: 4,
@@ -655,14 +699,52 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
           )}
 
           {/* Sector Verified Indicator */}
-          <div className="p-2.5 rounded-lg bg-zinc-900/80 border border-cyan-500/30 text-slate-300 text-[10px] font-mono flex items-center justify-between shadow-inner">
-            <div className="flex items-center gap-2 truncate">
-              <MapPin className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
-              <span className="text-white font-semibold truncate">{locationName || DEFAULT_USER_ZONE.name}</span>
+          <div className="p-2.5 rounded-lg bg-zinc-900/80 border border-cyan-500/30 text-slate-300 text-[10px] font-mono flex items-center justify-between shadow-inner gap-2">
+            <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+              {isLocating ? (
+                <Loader2 className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 animate-spin" />
+              ) : isPinned ? (
+                <MapPin className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+              ) : (
+                <MapPin className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+              )}
+              <span className="text-white font-semibold truncate">
+                {isLocating
+                  ? 'Verifying sector coordinates...'
+                  : locationName || DEFAULT_USER_ZONE.name}
+              </span>
             </div>
-            <span className="text-[8.5px] text-cyan-400 bg-cyan-950/80 border border-cyan-500/40 px-1.5 py-0.5 rounded uppercase font-bold flex-shrink-0 ml-2">
-              SECTOR VERIFIED
-            </span>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {isPinned ? (
+                <button
+                  type="button"
+                  onClick={() => handleDetectLocation(true)}
+                  className="text-[8.5px] text-purple-400 bg-purple-950/80 border border-purple-500/40 hover:border-purple-400 px-1.5 py-0.5 rounded uppercase font-bold flex items-center gap-1 transition cursor-pointer"
+                  title="Reset to current live GPS"
+                >
+                  <span>PINNED</span>
+                  <RefreshCw className="w-2.5 h-2.5 ml-0.5" />
+                </button>
+              ) : (
+                <span className="text-[8.5px] text-cyan-400 bg-cyan-950/80 border border-cyan-500/40 px-1.5 py-0.5 rounded uppercase font-bold flex items-center gap-1">
+                  <span>SECTOR VERIFIED</span>
+                  {locationAccuracy && (
+                    <span className="text-[7.5px] opacity-75">±{locationAccuracy}m</span>
+                  )}
+                </span>
+              )}
+              
+              <button
+                type="button"
+                onClick={() => handleDetectLocation(true)}
+                disabled={isLocating}
+                className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10 transition cursor-pointer disabled:opacity-50"
+                title="Re-acquire live GPS coordinates"
+              >
+                <RefreshCw className={`w-3 h-3 ${isLocating ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
         </form>
       </div>

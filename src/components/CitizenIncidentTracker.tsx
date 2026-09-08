@@ -68,7 +68,7 @@ export default function CitizenIncidentTracker({
         }
       } catch (e) {}
     }
-    return { lat: DEFAULT_USER_ZONE.lat, lng: DEFAULT_USER_ZONE.lng };
+    return null;
   });
 
   const handleChildLocationLock = useCallback((loc: { lat: number; lng: number } | null) => {
@@ -89,15 +89,9 @@ export default function CitizenIncidentTracker({
         (pos) => {
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setUserLocation(loc);
-          try {
-            localStorage.setItem('resqai_exact_location', JSON.stringify({ ...loc, name: DEFAULT_USER_ZONE.name }));
-          } catch (e) {}
         },
-        () => {
-          // Fallback to Balaji Nagar sector coordinates
-          setUserLocation(prev => prev || { lat: DEFAULT_USER_ZONE.lat, lng: DEFAULT_USER_ZONE.lng });
-        },
-        { enableHighAccuracy: true, timeout: 5000 }
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000 }
       );
     }
   }, []);
@@ -302,21 +296,29 @@ export default function CitizenIncidentTracker({
     if (isSendingSos) return;
     setIsSendingSos(true);
 
-    let lat = DEFAULT_USER_ZONE.lat;
-    let lng = DEFAULT_USER_ZONE.lng;
+    let cachedName: string | undefined;
+    try {
+      const cached = localStorage.getItem('resqai_exact_location');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.name) cachedName = parsed.name;
+      }
+    } catch (e) {}
 
-    const sendRequest = (coords: { lat: number; lng: number }) => {
+    const sendRequest = (coords: { lat: number; lng: number }, addr?: string) => {
       onAddIncident({
         type: 'POLICE_SOS',
         category: 'Public Safety',
         severity: 60,
         location: coords,
-        addressContext: DEFAULT_USER_ZONE.name,
+        addressContext: addr || (coords.lat === DEFAULT_USER_ZONE.lat ? DEFAULT_USER_ZONE.name : `${coords.lat.toFixed(4)}°N, ${coords.lng.toFixed(4)}°E`),
         description: 'POLICE SOS: Immediate police assistance requested by citizen.',
         casualtyEstimate: 0,
         trappedCount: 0,
         requiredResources: ['Police Patrol'],
         reporter: 'Citizen Portal',
+        isUserReported: true,
+        starred: true,
         needsSOSValidation: false,
         aiPriority: 'MEDIUM',
         etaResolution: 1
@@ -327,25 +329,25 @@ export default function CitizenIncidentTracker({
     };
 
     if (userLocation) {
-      sendRequest(userLocation);
+      sendRequest(userLocation, cachedName);
       return;
     }
 
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          sendRequest({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          sendRequest({ lat: pos.coords.latitude, lng: pos.coords.longitude }, cachedName);
         },
         () => {
           sendRequest({
-            lat: DEFAULT_USER_ZONE.lat + (Math.random() - 0.5) * 0.001,
-            lng: DEFAULT_USER_ZONE.lng + (Math.random() - 0.5) * 0.001
-          });
+            lat: DEFAULT_USER_ZONE.lat,
+            lng: DEFAULT_USER_ZONE.lng
+          }, DEFAULT_USER_ZONE.name);
         },
-        { timeout: 3000 }
+        { timeout: 5000, enableHighAccuracy: true }
       );
     } else {
-      sendRequest({ lat, lng });
+      sendRequest({ lat: DEFAULT_USER_ZONE.lat, lng: DEFAULT_USER_ZONE.lng }, DEFAULT_USER_ZONE.name);
     }
   };
 
