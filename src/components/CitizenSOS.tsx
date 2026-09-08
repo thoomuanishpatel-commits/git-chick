@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Send, Camera, Shield, AlertTriangle, Loader2, MapPin } from 'lucide-react';
+import { Send, Camera, Shield, AlertTriangle, Loader2, MapPin, RefreshCw } from 'lucide-react';
 import { Incident } from '../utils/mockData';
 
 const DEFAULT_USER_ZONE = {
@@ -9,6 +9,50 @@ const DEFAULT_USER_ZONE = {
   lng: 78.42259,
   name: 'Ward 115 Balaji Nagar, Greater Hyderabad Municipal Corporation West Zone, Hyderabad'
 };
+
+// Fast dual-provider reverse geocoding with zero hardcoded assumptions
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  // Provider 1: BigDataCloud (Fast, client-side, zero rate limits)
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      const parts = [
+        data.locality || data.localityInfo?.administrative?.[data.localityInfo.administrative.length - 1]?.name,
+        data.city || data.principalSubdivision,
+        data.countryName
+      ].filter(Boolean);
+      if (parts.length > 0) {
+        return parts.join(', ');
+      }
+    }
+  } catch (e) {}
+
+  // Provider 2: OpenStreetMap Nominatim fallback
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
+      { signal: controller.signal, headers: { 'Accept': 'application/json' } }
+    );
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.display_name) {
+        return data.display_name.split(', ').slice(0, 3).join(', ');
+      }
+    }
+  } catch (e) {}
+
+  return `${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E`;
+}
 
 interface CitizenSOSProps {
   onAddIncident: (inc: Omit<Incident, 'id' | 'reportedAt' | 'status'> & { status?: Incident['status'] }) => void;
@@ -99,17 +143,15 @@ Output ONLY raw JSON. No markdown blocks, backticks, or formatting.`
 export default function CitizenSOS({ onAddIncident, addNotification, onLocationLock, compact = false, overrideLocation = null }: CitizenSOSProps) {
   const [sosCategory, setSosCategory] = useState<'Medical' | 'Rescue' | 'Food' | 'Water' | 'Fire' | 'Police'>('Rescue');
   const [description, setDescription] = useState('');
-  const [locationName, setLocationName] = useState(DEFAULT_USER_ZONE.name);
+  const [locationName, setLocationName] = useState('Acquiring high-accuracy GPS coordinates...');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationLocked, setLocationLocked] = useState(false);
   const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
-  const [gpsSimulated, setGpsSimulated] = useState<{ lat: number; lng: number } | null>(() => ({
-    lat: DEFAULT_USER_ZONE.lat,
-    lng: DEFAULT_USER_ZONE.lng
-  }));
+  const [gpsSimulated, setGpsSimulated] = useState<{ lat: number; lng: number } | null>(null);
+  const [isPinned, setIsPinned] = useState(false);
 
-  // Ref locks to guarantee geolocation is only acquired ONCE and never locked again in a loop
+  // Ref locks to guarantee geolocation is only acquired ONCE unless force-refreshed
   const hasLockedRef = useRef(false);
   const onLocationLockRef = useRef(onLocationLock);
   onLocationLockRef.current = onLocationLock;
@@ -130,140 +172,83 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
     }
 
     setIsLocating(true);
-
-    // 1. Check persistent accurate location in localStorage
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('resqai_exact_location');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.lat && parsed.lng) {
-            setGpsSimulated({ lat: parsed.lat, lng: parsed.lng });
-            setLocationLocked(true);
-            setLocationName(parsed.name || DEFAULT_USER_ZONE.name);
-            onLocationLockRef.current?.({ lat: parsed.lat, lng: parsed.lng });
-          }
-        }
-      } catch (e) {}
-    }
+    setLocationName('Acquiring high-accuracy GPS coordinates...');
 
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
-          const accuracy = Math.round(position.coords.accuracy || 4);
+          const accuracy = Math.round(position.coords.accuracy || 5);
           hasLockedRef.current = true;
           setGpsSimulated({ lat, lng });
           setLocationLocked(true);
           setIsLocating(false);
           setLocationAccuracy(accuracy);
-          setLocationName(DEFAULT_USER_ZONE.name);
+          setIsPinned(false);
           onLocationLockRef.current?.({ lat, lng });
 
+          // Real-time reverse geocode without hardcoded sector assumptions
+          const realAddr = await reverseGeocode(lat, lng);
+          setLocationName(realAddr);
           try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3500);
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
-              signal: controller.signal,
-              headers: { 'Accept': 'application/json' }
-            });
-            clearTimeout(timeoutId);
-            if (res.ok) {
-              const data = await res.json();
-              if (data.display_name) {
-                const parts = data.display_name.split(', ');
-                const shortAddr = parts.slice(0, 4).join(', ');
-                const finalName = shortAddr || data.display_name;
-                setLocationName(finalName);
-                try {
-                  localStorage.setItem('resqai_exact_location', JSON.stringify({ lat, lng, name: finalName }));
-                } catch (e) {}
-              }
-            }
-          } catch {
-            try {
-              localStorage.setItem('resqai_exact_location', JSON.stringify({ lat, lng, name: DEFAULT_USER_ZONE.name }));
-            } catch (e) {}
-          }
+            localStorage.setItem('resqai_exact_location', JSON.stringify({ lat, lng, name: realAddr }));
+          } catch (e) {}
         },
-        () => {
-          // Fallback to Balaji Nagar accurate user sector
-          let lat = DEFAULT_USER_ZONE.lat;
-          let lng = DEFAULT_USER_ZONE.lng;
-          let name = DEFAULT_USER_ZONE.name;
+        async (error) => {
+          console.warn('[CitizenSOS] Geolocation error or timeout:', error.message);
+          setIsLocating(false);
 
+          // If we already have a locked GPS from map or previous fix, keep it
+          if (gpsSimulated) return;
+
+          // Check if previously cached on this device
           try {
             const cached = localStorage.getItem('resqai_exact_location');
             if (cached) {
               const parsed = JSON.parse(cached);
               if (parsed.lat && parsed.lng) {
-                lat = parsed.lat;
-                lng = parsed.lng;
-                name = parsed.name || name;
+                setGpsSimulated({ lat: parsed.lat, lng: parsed.lng });
+                setLocationLocked(true);
+                setLocationName(parsed.name || `${parsed.lat.toFixed(4)}°N, ${parsed.lng.toFixed(4)}°E`);
+                onLocationLockRef.current?.({ lat: parsed.lat, lng: parsed.lng });
+                return;
               }
             }
           } catch (e) {}
 
-          hasLockedRef.current = true;
-          setGpsSimulated({ lat, lng });
+          // Fallback only if GPS was denied or totally unavailable
+          setGpsSimulated({ lat: DEFAULT_USER_ZONE.lat, lng: DEFAULT_USER_ZONE.lng });
           setLocationLocked(true);
-          setIsLocating(false);
-          setLocationAccuracy(8);
-          setLocationName(name);
-          onLocationLockRef.current?.({ lat, lng });
+          setLocationName(DEFAULT_USER_ZONE.name);
+          onLocationLockRef.current?.({ lat: DEFAULT_USER_ZONE.lat, lng: DEFAULT_USER_ZONE.lng });
         },
-        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
       );
     } else {
-      let lat = DEFAULT_USER_ZONE.lat;
-      let lng = DEFAULT_USER_ZONE.lng;
-      let name = DEFAULT_USER_ZONE.name;
-
-      try {
-        const cached = localStorage.getItem('resqai_exact_location');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.lat && parsed.lng) {
-            lat = parsed.lat;
-            lng = parsed.lng;
-            name = parsed.name || name;
-          }
-        }
-      } catch (e) {}
-
-      hasLockedRef.current = true;
-      setGpsSimulated({ lat, lng });
-      setLocationLocked(true);
       setIsLocating(false);
-      setLocationAccuracy(10);
-      setLocationName(name);
-      onLocationLockRef.current?.({ lat, lng });
+      setGpsSimulated({ lat: DEFAULT_USER_ZONE.lat, lng: DEFAULT_USER_ZONE.lng });
+      setLocationLocked(true);
+      setLocationName(DEFAULT_USER_ZONE.name);
+      onLocationLockRef.current?.({ lat: DEFAULT_USER_ZONE.lat, lng: DEFAULT_USER_ZONE.lng });
     }
-  }, []);
+  }, [gpsSimulated]);
 
   // Support clicking/pinning anywhere on the map to override location
   useEffect(() => {
     if (overrideLocation && overrideLocation.lat && overrideLocation.lng) {
-      hasLockedRef.current = true;
       setGpsSimulated(overrideLocation);
       setLocationLocked(true);
+      setIsPinned(true);
+      setIsLocating(false);
       onLocationLockRef.current?.(overrideLocation);
       
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${overrideLocation.lat}&lon=${overrideLocation.lng}`, {
-        headers: { 'Accept': 'application/json' }
-      })
-        .then(r => r.json())
-        .then(data => {
-          const parts = data.display_name ? data.display_name.split(', ').slice(0, 4).join(', ') : 'Pinned Disaster Location';
-          setLocationName(parts);
-          try {
-            localStorage.setItem('resqai_exact_location', JSON.stringify({ lat: overrideLocation.lat, lng: overrideLocation.lng, name: parts }));
-          } catch (e) {}
-        })
-        .catch(() => {
-          setLocationName('Pinned Disaster Location');
-        });
+      reverseGeocode(overrideLocation.lat, overrideLocation.lng).then((parts) => {
+        setLocationName(parts);
+        try {
+          localStorage.setItem('resqai_exact_location', JSON.stringify({ lat: overrideLocation.lat, lng: overrideLocation.lng, name: parts }));
+        } catch (e) {}
+      });
     }
   }, [overrideLocation]);
 
@@ -273,6 +258,33 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       handleDetectLocation(false);
     }
   }, [handleDetectLocation]);
+
+  // Continuously refine accuracy via watchPosition
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        if (isPinned) return;
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const acc = Math.round(pos.coords.accuracy || 5);
+        setLocationAccuracy(acc);
+        setGpsSimulated(prev => {
+          if (!prev) {
+            onLocationLockRef.current?.({ lat, lng });
+            reverseGeocode(lat, lng).then(setLocationName);
+            return { lat, lng };
+          }
+          return prev;
+        });
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 10000 }
+    );
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [isPinned]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
