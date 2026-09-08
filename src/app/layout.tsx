@@ -38,16 +38,29 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(
-                    function(registration) {
-                      console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    },
-                    function(err) {
-                      console.log('ServiceWorker registration failed: ', err);
+              if (typeof window !== 'undefined') {
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for (var r of registrations) {
+                      r.unregister();
                     }
-                  );
+                  });
+                }
+                if ('caches' in window) {
+                  caches.keys().then(function(names) {
+                    for (var name of names) {
+                      caches.delete(name);
+                    }
+                  });
+                }
+                window.addEventListener('error', function(e) {
+                  var msg = e && e.message ? e.message.toLowerCase() : '';
+                  if (msg.indexOf('loading chunk') !== -1 || msg.indexOf('failed to fetch') !== -1) {
+                    if (!sessionStorage.getItem('resqai_chunk_recovered')) {
+                      sessionStorage.setItem('resqai_chunk_recovered', 'true');
+                      window.location.reload();
+                    }
+                  }
                 });
               }
             `,
