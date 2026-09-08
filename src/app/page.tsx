@@ -85,14 +85,16 @@ export function HomeDashboard({ isDemoMode = false, initialView }: { isDemoMode?
   const [currentView, setViewInternal] = useState<'landing' | 'admin' | 'citizen'>(() => {
     if (initialView) return initialView;
     if (typeof window !== 'undefined') {
-      const path = window.location.pathname;
-      if (path.startsWith('/admin')) return 'admin';
-      if (path.startsWith('/citizen')) return 'citizen';
-      const param = new URLSearchParams(window.location.search).get('view');
-      if (param === 'admin') return 'admin';
-      if (param === 'citizen') return 'citizen';
-      const saved = sessionStorage.getItem('resqai_active_pathway');
-      if (saved === 'admin' || saved === 'citizen') return saved;
+      try {
+        const path = window.location.pathname;
+        if (path.startsWith('/admin')) return 'admin';
+        if (path.startsWith('/citizen')) return 'citizen';
+        const param = new URLSearchParams(window.location.search).get('view');
+        if (param === 'admin') return 'admin';
+        if (param === 'citizen') return 'citizen';
+        const saved = sessionStorage.getItem('resqai_active_pathway');
+        if (saved === 'admin' || saved === 'citizen') return saved;
+      } catch (e) {}
     }
     return 'landing';
   });

@@ -39,29 +39,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           dangerouslySetInnerHTML={{
             __html: `
               if (typeof window !== 'undefined') {
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                    for (var r of registrations) {
-                      r.unregister();
-                    }
-                  });
-                }
-                if ('caches' in window) {
-                  caches.keys().then(function(names) {
-                    for (var name of names) {
-                      caches.delete(name);
-                    }
-                  });
-                }
-                window.addEventListener('error', function(e) {
-                  var msg = e && e.message ? e.message.toLowerCase() : '';
-                  if (msg.indexOf('loading chunk') !== -1 || msg.indexOf('failed to fetch') !== -1) {
-                    if (!sessionStorage.getItem('resqai_chunk_recovered')) {
-                      sessionStorage.setItem('resqai_chunk_recovered', 'true');
-                      window.location.reload();
-                    }
+                try {
+                  if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                      for (var r of registrations) {
+                        r.unregister();
+                      }
+                    });
                   }
-                });
+                  if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                      for (var name of names) {
+                        caches.delete(name);
+                      }
+                    });
+                  }
+                } catch (e) {}
               }
             `,
           }}

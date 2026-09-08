@@ -153,6 +153,8 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
 
   // Ref locks to guarantee geolocation is only acquired ONCE unless force-refreshed
   const hasLockedRef = useRef(false);
+  const gpsSimulatedRef = useRef(gpsSimulated);
+  gpsSimulatedRef.current = gpsSimulated;
   const onLocationLockRef = useRef(onLocationLock);
   onLocationLockRef.current = onLocationLock;
   const addNotificationRef = useRef(addNotification);
@@ -205,7 +207,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
           setIsLocating(false);
 
           // If we already have a locked GPS from map or previous fix, keep it
-          if (gpsSimulated) return;
+          if (gpsSimulatedRef.current) return;
 
           // Check if previously cached on this device
           try {
@@ -237,7 +239,7 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
       setLocationName(DEFAULT_USER_ZONE.name);
       onLocationLockRef.current?.({ lat: DEFAULT_USER_ZONE.lat, lng: DEFAULT_USER_ZONE.lng });
     }
-  }, [gpsSimulated]);
+  }, []);
 
   // Support clicking/pinning anywhere on the map to override location
   useEffect(() => {
@@ -274,14 +276,16 @@ export default function CitizenSOS({ onAddIncident, addNotification, onLocationL
         const lng = pos.coords.longitude;
         const acc = Math.round(pos.coords.accuracy || 5);
         setLocationAccuracy(acc);
-        setGpsSimulated(prev => {
-          if (!prev) {
-            onLocationLockRef.current?.({ lat, lng });
-            reverseGeocode(lat, lng).then(setLocationName);
-            return { lat, lng };
-          }
-          return prev;
-        });
+        if (!hasLockedRef.current) {
+          hasLockedRef.current = true;
+          setIsLocating(false);
+          setLocationLocked(true);
+          setGpsSimulated({ lat, lng });
+          onLocationLockRef.current?.({ lat, lng });
+          reverseGeocode(lat, lng).then((addr) => {
+            setLocationName(addr);
+          });
+        }
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 10000 }
